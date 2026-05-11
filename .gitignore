@@ -1,0 +1,26 @@
+# ignorer venv 
+venv/
+# ignorer pycache
+__pycache__/
+# ignorer les fichiers de log
+*.log
+# ignorer les fichiers de configuration de l'IDE
+.idea/
+.vscode/
+# ignorer les fichiers de test
+tests/
+# ignorer les fichiers de build
+build/
+dist/
+# ignorer les fichiers de distribution
+*.egg-info/
+# ignorer les fichiers de cache
+*.cache/
+# ignorer les fichiers de données
+data/
+# ignorer les fichiers de documentation
+docs/
+# ignorer les fichiers de configuration de l'environnement
+.env
+# ignorer les fichiers de configuration de l'application
+config/
