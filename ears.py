@@ -1,34 +1,54 @@
-import speech_recognition as sr
-from config import Config
-import os
+import subprocess
+from faster_whisper import WhisperModel
 
-# Supprime l'affichage des erreurs système dans le terminal
-os.environ['ASOUND_LOG_FILE'] = '/dev/null'
+# Chemins partagés Windows/WSL
+AUDIO_FILE_WSL     = "/mnt/c/Users/mathi/audio_jarvis.wav"
+RECORD_SCRIPT      = r"C:\Users\mathi\record_audio.py"
+PYTHON_WINDOWS     = r"C:\Users\mathi\AppData\Local\Microsoft\WindowsApps\python.exe"
+
+# Mots parasites que Whisper hallucine sur le silence
+MOTS_PARASITES = ["amara", "sous-titres", "merci d'avoir", "abonnez"]
 
 class Ears:
     def __init__(self):
-        self.recognizer = sr.Recognizer()
-        self.recognizer.dynamic_energy_threshold = True
+        print("[JARVIS] Chargement de Whisper...")
+        self.model = WhisperModel("small", device="cpu", compute_type="int8")
+        print("[JARVIS] Whisper opérationnel.")
 
     def ecouter(self):
-        # Utilisation explicite du micro système
-        # On ne passe pas d'index, le plugin 'pulse' gérera le lien
+        """Enregistre via Python Windows puis transcrit avec Whisper."""
         try:
-            with sr.Microphone() as source:
-                # On laisse un temps de silence pour stabiliser le flux
-                self.recognizer.pause_threshold = 0.8
-                # On empêche l'ajustement automatique pendant l'écoute
-                self.recognizer.dynamic_energy_threshold = False
-                print(f"\n[{Config.ASSISTANT_NAME}] : Je vous écoute...")
-                self.recognizer.adjust_for_ambient_noise(source, duration=1)
-                
-                audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=10)
-                print(f"[{Config.ASSISTANT_NAME}] : Analyse...")
-                
-                texte = self.recognizer.recognize_google(audio, language="fr-FR")
-                return texte
-            
+            # Lance l'enregistrement côté Windows
+            result = subprocess.run(
+                [PYTHON_WINDOWS, RECORD_SCRIPT],
+                capture_output=True,
+                text=True,
+                timeout=20
+            )
+
+            if "DONE" not in result.stdout:
+                print(f"[JARVIS] Erreur enregistrement : {result.stderr}")
+                return ""
+
+            # Transcrit avec Whisper + filtre silence (VAD)
+            segments, _ = self.model.transcribe(
+                AUDIO_FILE_WSL,
+                language="fr",
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=500)
+            )
+
+            texte = " ".join([s.text.strip() for s in segments]).strip()
+
+            # Filtre les hallucinations Whisper sur silence
+            if any(p in texte.lower() for p in MOTS_PARASITES):
+                return ""
+
+            return texte
+
+        except subprocess.TimeoutExpired:
+            print("[JARVIS] Timeout enregistrement.")
+            return ""
         except Exception as e:
-            # Si l'erreur "No Default Input" persiste, c'est que le service est éteint
             print(f"Erreur ears : {e}")
             return ""
