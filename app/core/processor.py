@@ -1,5 +1,6 @@
 from ollama import Client
 from config import Config
+from actions import executer_action
 from datetime import datetime
 
 try:
@@ -12,10 +13,8 @@ OLLAMA_HOST = "http://172.21.176.1:11434"
 class Brain:
     def __init__(self):
         Config.validate()
-
         self.model = "llama3.1:8b"
         self.client = Client(host=OLLAMA_HOST)
-
         self.system_prompt = (
             f"Tu es JARVIS, l'intelligence artificielle de Monsieur {Config.USER_NAME}. "
             "Ton ton est formel, calme et strictement professoral. "
@@ -28,9 +27,7 @@ class Brain:
             "6. Tes réponses sont destinées à être lues à voix haute : évite les listes à puces, "
             "les symboles spéciaux et les formatages markdown. Formule des phrases naturelles."
         )
-
         self.historique = []
-
         try:
             self.client.chat(
                 model=self.model,
@@ -45,14 +42,15 @@ class Brain:
     def reflechir(self, texte_entree):
         if not texte_entree:
             return ""
-        
+
+        entree_clean = texte_entree.lower().strip()
+
         # --- VOIE ACTIONS (commandes PC) ---
-        from actions import executer_action
         reponse_action = executer_action(texte_entree)
         if reponse_action:
             return reponse_action
 
-        # --- VOIE RAPIDE ---
+        # --- VOIE RAPIDE (heure locale) ---
         if "heure" in entree_clean and ("est-il" in entree_clean or "est il" in entree_clean):
             try:
                 maintenant = datetime.now(ZoneInfo("Europe/Paris"))
@@ -67,24 +65,15 @@ class Brain:
             contexte_temporel = f"Information système : Il est actuellement {horodatage}."
 
             messages = [
-                {
-                    "role": "system",
-                    "content": f"{self.system_prompt}\n{contexte_temporel}"
-                }
+                {"role": "system", "content": f"{self.system_prompt}\n{contexte_temporel}"}
             ] + self.historique + [
-                {
-                    "role": "user",
-                    "content": texte_entree
-                }
+                {"role": "user", "content": texte_entree}
             ]
 
             response = self.client.chat(
                 model=self.model,
                 messages=messages,
-                options={
-                    "temperature": 0.7,
-                    "num_predict": 300,
-                }
+                options={"temperature": 0.7, "num_predict": 300}
             )
 
             reponse_texte = response["message"]["content"].strip()
