@@ -3,8 +3,8 @@ from faster_whisper import WhisperModel
 
 # Chemins partagés Windows/WSL
 AUDIO_FILE_WSL     = "/mnt/c/Users/mathi/audio_jarvis.wav"
-RECORD_SCRIPT      = r"C:\Users\mathi\record_audio.py"
-PYTHON_WINDOWS     = r"C:\Users\mathi\AppData\Local\Programs\Python\Python313\python.exe"
+RECORD_SCRIPT = r"C:\Users\mathi\record_audio.py"
+PYTHON_WINDOWS = "/mnt/c/Users/mathi/AppData/Local/Programs/Python/Python313/python.exe"
 
 # Mots parasites que Whisper hallucine sur le silence
 MOTS_PARASITES = ["amara", "sous-titres", "merci d'avoir", "abonnez"]
