@@ -2,6 +2,7 @@
 venv/
 # ignorer pycache
 __pycache__/
+core/__pycache__/
 # ignorer les fichiers de log
 *.log
 # ignorer les fichiers de configuration de l'IDE
@@ -24,3 +25,14 @@ docs/
 .env
 # ignorer les fichiers de configuration de l'application
 config/
+#ignorer temporary files
+temp_voice.mp3
+temp_image.png
+# ignorer les fichiers de sauvegarde
+*.bak
+# ignorer les fichiers de sauvegarde de l'éditeur
+*~
+# ignorer les fichiers de sauvegarde de l'éditeur
+*.swp
+ignorer tout les .pyc
+*.pyc
