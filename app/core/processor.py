@@ -45,8 +45,12 @@ class Brain:
     def reflechir(self, texte_entree):
         if not texte_entree:
             return ""
-
-        entree_clean = texte_entree.lower()
+        
+        # --- VOIE ACTIONS (commandes PC) ---
+        from actions import executer_action
+        reponse_action = executer_action(texte_entree)
+        if reponse_action:
+            return reponse_action
 
         # --- VOIE RAPIDE ---
         if "heure" in entree_clean and ("est-il" in entree_clean or "est il" in entree_clean):
