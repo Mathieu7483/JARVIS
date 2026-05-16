@@ -5,174 +5,65 @@
 <title>JARVIS — Système v3.0</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;500;700&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --c-bg:       #04080f;
-  --c-panel:    #070d18;
-  --c-border:   #0d2035;
-  --c-cyan:     #00d4ff;
-  --c-cyan2:    #00ffcc;
-  --c-blue:     #0066aa;
-  --c-dim:      #0a3050;
-  --c-text:     #7ac8e0;
-  --c-text2:    #2a6a8a;
-  --font-main:  'Share Tech Mono', monospace;
-  --font-title: 'Orbitron', monospace;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c-bg:#04080f;--c-panel:#070d18;--c-border:#0d2035;
+  --c-cyan:#00d4ff;--c-cyan2:#00ffcc;--c-blue:#0066aa;
+  --c-dim:#0a3050;--c-text:#7ac8e0;--c-text2:#2a6a8a;
+  --font-main:'Share Tech Mono',monospace;--font-title:'Orbitron',monospace;
 }
-
-html, body { width: 100%; height: 100%; overflow: hidden; background: var(--c-bg); color: var(--c-text); font-family: var(--font-main); }
-
-/* LAYOUT */
-.layout {
-  display: grid;
-  grid-template-rows: 44px 1fr 80px;
-  grid-template-columns: 1fr 360px;
-  height: 100vh;
-}
-
-/* TOP BAR */
-.topbar {
-  grid-column: 1 / -1;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px;
-  background: var(--c-panel);
-  border-bottom: 1px solid var(--c-border);
-}
-.topbar-title { font-family: var(--font-title); font-size: 13px; letter-spacing: 4px; color: var(--c-cyan); }
-.topbar-info { display: flex; gap: 24px; font-size: 10px; color: var(--c-text2); letter-spacing: 1px; }
-.topbar-info span { display: flex; align-items: center; gap: 6px; }
-.live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--c-cyan); animation: blink 1.4s infinite; }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
-/* CENTER */
-.center {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 16px; padding: 20px; position: relative; overflow: hidden;
-}
-
-/* Grille de fond */
-.center::before {
-  content: '';
-  position: absolute; inset: 0;
-  background-image:
-    linear-gradient(var(--c-border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--c-border) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.3;
-}
-
-#brainContainer { position: relative; z-index: 1; }
-
-/* Status */
-.status-ring {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px 18px;
-  border: 1px solid var(--c-dim); border-radius: 20px;
-  font-size: 10px; letter-spacing: 3px; color: var(--c-cyan);
-  background: rgba(0,20,40,0.8);
-  transition: all 0.4s;
-}
-.status-ring.thinking { border-color: #ff8800; color: #ff8800; }
-.status-ring.speaking { border-color: var(--c-cyan2); color: var(--c-cyan2); }
-.status-indicator { width: 7px; height: 7px; border-radius: 50%; background: var(--c-cyan); animation: blink 1.4s infinite; transition: background 0.4s; }
-.status-ring.thinking .status-indicator { background: #ff8800; animation-duration: 0.5s; }
-.status-ring.speaking .status-indicator { background: var(--c-cyan2); animation-duration: 0.3s; }
-
-/* Visualiseur audio */
-.visualizer {
-  position: relative; z-index: 1;
-  display: flex; align-items: flex-end; gap: 3px; height: 40px; width: 180px;
-}
-.vbar {
-  flex: 1; border-radius: 2px 2px 0 0;
-  background: linear-gradient(to top, var(--c-blue), var(--c-cyan));
-  animation: vwave ease-in-out infinite alternate;
-  opacity: 0.7;
-}
-.vbar:nth-child(1){animation-duration:.5s;animation-delay:0s}
-.vbar:nth-child(2){animation-duration:.7s;animation-delay:.05s}
-.vbar:nth-child(3){animation-duration:.4s;animation-delay:.1s}
-.vbar:nth-child(4){animation-duration:.9s;animation-delay:.15s}
-.vbar:nth-child(5){animation-duration:.6s;animation-delay:.2s}
-.vbar:nth-child(6){animation-duration:.8s;animation-delay:.25s}
-.vbar:nth-child(7){animation-duration:.5s;animation-delay:.3s}
-.vbar:nth-child(8){animation-duration:.7s;animation-delay:.35s}
-.vbar:nth-child(9){animation-duration:.4s;animation-delay:.4s}
-.vbar:nth-child(10){animation-duration:.6s;animation-delay:.45s}
-.vbar:nth-child(11){animation-duration:.9s;animation-delay:.5s}
-.vbar:nth-child(12){animation-duration:.5s;animation-delay:.55s}
-@keyframes vwave { from{height:8%} to{height:95%} }
-
-/* Transcription box */
-.tbox {
-  position: relative; z-index: 1;
-  width: 100%; max-width: 420px;
-  border: 1px solid var(--c-dim); border-radius: 4px;
-  padding: 8px 14px; background: rgba(4,12,24,0.9);
-  transition: border-color 0.4s;
-}
-.tbox.active { border-color: var(--c-cyan); }
-.tbox-label { font-size: 8px; letter-spacing: 3px; color: var(--c-text2); margin-bottom: 4px; }
-.tbox-text { font-size: 13px; color: var(--c-cyan); line-height: 1.5; min-height: 18px; }
-.tbox-text.response { color: var(--c-cyan2); }
-.cursor { display: inline-block; width: 8px; height: 13px; background: var(--c-cyan); animation: blink .8s infinite; vertical-align: middle; margin-left: 2px; }
-
-/* RIGHT PANEL */
-.right-panel {
-  display: flex; flex-direction: column;
-  border-left: 1px solid var(--c-border);
-  overflow: hidden;
-}
-.panel-header {
-  padding: 12px 16px;
-  font-size: 8px; letter-spacing: 3px; color: var(--c-text2);
-  border-bottom: 1px solid var(--c-border);
-  background: var(--c-panel);
-}
-.history { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-.history::-webkit-scrollbar { width: 3px; }
-.history::-webkit-scrollbar-thumb { background: var(--c-dim); border-radius: 2px; }
-
-.msg { display: flex; flex-direction: column; gap: 4px; animation: fadeIn 0.4s ease; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-.msg-who { font-size: 8px; letter-spacing: 2px; }
-.msg-who.user { color: var(--c-blue); }
-.msg-who.jarvis { color: #00aa66; }
-.msg-bubble {
-  font-size: 11px; line-height: 1.6; padding: 8px 10px;
-  border-radius: 2px; border-left: 2px solid;
-}
-.msg-bubble.user { border-color: var(--c-blue); background: rgba(0,60,100,0.15); color: var(--c-text); }
-.msg-bubble.jarvis { border-color: #00aa66; background: rgba(0,100,60,0.1); color: #4ae0a0; }
-
-/* BOTTOM BAR */
-.bottombar {
-  grid-column: 1 / -1;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px;
-  border-top: 1px solid var(--c-border);
-  background: var(--c-panel);
-}
-.btn-start {
-  font-family: var(--font-title); font-size: 10px; letter-spacing: 3px;
-  padding: 8px 24px; border-radius: 2px;
-  border: 1px solid var(--c-cyan); background: transparent; color: var(--c-cyan);
-  cursor: pointer; transition: all 0.3s;
-}
-.btn-start:hover { background: var(--c-cyan); color: var(--c-bg); }
-.btn-start.active { border-color: #ff4444; color: #ff4444; }
-.btn-start.active:hover { background: #ff4444; color: var(--c-bg); }
-.sys-stats { display: flex; gap: 20px; font-size: 9px; color: var(--c-text2); letter-spacing: 1px; }
+html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:var(--c-text);font-family:var(--font-main)}
+.layout{display:grid;grid-template-rows:44px 1fr 80px;grid-template-columns:1fr 360px;height:100vh}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--c-panel);border-bottom:1px solid var(--c-border)}
+.topbar-title{font-family:var(--font-title);font-size:13px;letter-spacing:4px;color:var(--c-cyan)}
+.topbar-info{display:flex;gap:24px;font-size:10px;color:var(--c-text2);letter-spacing:1px}
+.topbar-info span{display:flex;align-items:center;gap:6px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--c-cyan);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;position:relative;overflow:hidden}
+.center::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--c-border) 1px,transparent 1px),linear-gradient(90deg,var(--c-border) 1px,transparent 1px);background-size:40px 40px;opacity:0.3}
+#brainContainer{position:relative;z-index:1}
+.status-ring{position:relative;z-index:1;display:flex;align-items:center;gap:10px;padding:6px 18px;border:1px solid var(--c-dim);border-radius:20px;font-size:10px;letter-spacing:3px;color:var(--c-cyan);background:rgba(0,20,40,0.8);transition:all 0.4s}
+.status-ring.thinking{border-color:#ff8800;color:#ff8800}
+.status-ring.speaking{border-color:var(--c-cyan2);color:var(--c-cyan2)}
+.status-indicator{width:7px;height:7px;border-radius:50%;background:var(--c-cyan);animation:blink 1.4s infinite;transition:background 0.4s}
+.status-ring.thinking .status-indicator{background:#ff8800;animation-duration:0.5s}
+.status-ring.speaking .status-indicator{background:var(--c-cyan2);animation-duration:0.3s}
+.visualizer{position:relative;z-index:1;display:flex;align-items:flex-end;gap:3px;height:40px;width:180px}
+.vbar{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(to top,var(--c-blue),var(--c-cyan));animation:vwave ease-in-out infinite alternate;opacity:0.7}
+.vbar:nth-child(1){animation-duration:.5s}.vbar:nth-child(2){animation-duration:.7s}.vbar:nth-child(3){animation-duration:.4s}
+.vbar:nth-child(4){animation-duration:.9s}.vbar:nth-child(5){animation-duration:.6s}.vbar:nth-child(6){animation-duration:.8s}
+.vbar:nth-child(7){animation-duration:.5s}.vbar:nth-child(8){animation-duration:.7s}.vbar:nth-child(9){animation-duration:.4s}
+.vbar:nth-child(10){animation-duration:.6s}.vbar:nth-child(11){animation-duration:.9s}.vbar:nth-child(12){animation-duration:.5s}
+@keyframes vwave{from{height:8%}to{height:95%}}
+.tbox{position:relative;z-index:1;width:100%;max-width:420px;border:1px solid var(--c-dim);border-radius:4px;padding:8px 14px;background:rgba(4,12,24,0.9);transition:border-color 0.4s}
+.tbox.active{border-color:var(--c-cyan)}
+.tbox-label{font-size:8px;letter-spacing:3px;color:var(--c-text2);margin-bottom:4px}
+.tbox-text{font-size:13px;color:var(--c-cyan);line-height:1.5;min-height:18px}
+.tbox-text.response{color:var(--c-cyan2)}
+.cursor{display:inline-block;width:8px;height:13px;background:var(--c-cyan);animation:blink .8s infinite;vertical-align:middle;margin-left:2px}
+.right-panel{display:flex;flex-direction:column;border-left:1px solid var(--c-border);overflow:hidden}
+.panel-header{padding:12px 16px;font-size:8px;letter-spacing:3px;color:var(--c-text2);border-bottom:1px solid var(--c-border);background:var(--c-panel)}
+.history{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.history::-webkit-scrollbar{width:3px}
+.history::-webkit-scrollbar-thumb{background:var(--c-dim);border-radius:2px}
+.msg{display:flex;flex-direction:column;gap:4px;animation:fadeIn 0.4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.msg-who{font-size:8px;letter-spacing:2px}
+.msg-who.user{color:var(--c-blue)}.msg-who.jarvis{color:#00aa66}
+.msg-bubble{font-size:11px;line-height:1.6;padding:8px 10px;border-radius:2px;border-left:2px solid}
+.msg-bubble.user{border-color:var(--c-blue);background:rgba(0,60,100,0.15);color:var(--c-text)}
+.msg-bubble.jarvis{border-color:#00aa66;background:rgba(0,100,60,0.1);color:#4ae0a0}
+.bottombar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-top:1px solid var(--c-border);background:var(--c-panel)}
+.btn-start{font-family:var(--font-title);font-size:10px;letter-spacing:3px;padding:8px 24px;border-radius:2px;border:1px solid var(--c-cyan);background:transparent;color:var(--c-cyan);cursor:pointer;transition:all 0.3s}
+.btn-start:hover{background:var(--c-cyan);color:var(--c-bg)}
+.btn-start.active{border-color:#ff4444;color:#ff4444}
+.btn-start.active:hover{background:#ff4444;color:var(--c-bg)}
+.sys-stats{display:flex;gap:20px;font-size:9px;color:var(--c-text2);letter-spacing:1px}
 </style>
 </head>
 <body>
-
 <div class="layout">
-
-  <!-- TOP BAR -->
   <header class="topbar">
     <span class="topbar-title">J.A.R.V.I.S</span>
     <div class="topbar-info">
@@ -181,23 +72,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--c-bg
       <span>WHISPER small</span>
     </div>
   </header>
-
-  <!-- CENTER -->
   <main class="center">
     <div id="brainContainer"></div>
-
     <div class="status-ring" id="statusBadge">
       <div class="status-indicator"></div>
       <span id="statusText">EN ÉCOUTE</span>
     </div>
-
-    <div class="visualizer" id="visualizer">
-      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
-      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
-      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
-      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+    <div class="visualizer">
+      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
     </div>
-
     <div class="tbox" id="transBox">
       <div class="tbox-label">TRANSCRIPTION</div>
       <div class="tbox-text" id="transText"><span class="cursor"></span></div>
@@ -207,14 +92,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--c-bg
       <div class="tbox-text response" id="respText"><span class="cursor"></span></div>
     </div>
   </main>
-
-  <!-- RIGHT PANEL -->
   <aside class="right-panel">
     <div class="panel-header">HISTORIQUE DE CONVERSATION</div>
     <div class="history" id="history"></div>
   </aside>
-
-  <!-- BOTTOM BAR -->
   <footer class="bottombar">
     <div class="sys-stats">
       <span id="stat-time">--:--</span>
@@ -223,20 +104,89 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--c-bg
     </div>
     <button class="btn-start" id="btnStart" onclick="toggleJarvis()">▶ ACTIVER JARVIS</button>
   </footer>
-
 </div>
 
-<!-- Three.js + GLTFLoader -->
+<!-- Scripts UMD classiques -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-
 <script>
-// ─── THREE.JS BRAIN ───────────────────────────────────────────────
-const container = document.getElementById('brainContainer');
-const W = 420, H = 320;
+// GLTFLoader UMD r128 inline (évite les conflits de version)
+(function(){
+  if(typeof THREE === 'undefined') return;
 
+  THREE.GLTFLoader = (function() {
+    function GLTFLoader(manager) {
+      THREE.Loader.call(this, manager);
+      this.dracoLoader = null;
+    }
+    GLTFLoader.prototype = Object.assign(Object.create(THREE.Loader.prototype), {
+      constructor: GLTFLoader,
+      load: function(url, onLoad, onProgress, onError) {
+        var scope = this;
+        var loader = new THREE.FileLoader(this.manager);
+        loader.setPath(this.path);
+        loader.setResponseType('arraybuffer');
+        loader.setRequestHeader(this.requestHeader);
+        loader.setWithCredentials(this.withCredentials);
+        loader.load(url, function(data) {
+          try { scope.parse(data, url, onLoad, onError); }
+          catch(e) { if(onError) onError(e); else throw e; }
+        }, onProgress, onError);
+      },
+      setDRACOLoader: function(dl) { this.dracoLoader = dl; return this; },
+      parse: function(data, path, onLoad, onError) {
+        // Parse binaire GLB
+        var magic = THREE.LoaderUtils.decodeText(new Uint8Array(data, 0, 4));
+        if(magic === 'glTF') {
+          this._parseBinary(data, path, onLoad, onError);
+        } else {
+          var text = THREE.LoaderUtils.decodeText(new Uint8Array(data));
+          var json = JSON.parse(text);
+          this._parseJSON(json, path, null, onLoad, onError);
+        }
+      },
+      _parseBinary: function(data, path, onLoad, onError) {
+        var view = new DataView(data);
+        var version = view.getUint32(4, true);
+        var length = view.getUint32(8, true);
+        var chunkIndex = 12;
+        var jsonChunkLength = view.getUint32(chunkIndex, true);
+        var jsonChunkType = view.getUint32(chunkIndex+4, true);
+        if(jsonChunkType !== 0x4E4F534A) { if(onError) onError(new Error('Invalid GLB')); return; }
+        var jsonText = THREE.LoaderUtils.decodeText(new Uint8Array(data, chunkIndex+8, jsonChunkLength));
+        var json = JSON.parse(jsonText);
+        var binaryChunkOffset = chunkIndex + 8 + jsonChunkLength;
+        var binaryBuffer = null;
+        if(binaryChunkOffset < data.byteLength) {
+          var binLen = view.getUint32(binaryChunkOffset, true);
+          binaryBuffer = data.slice(binaryChunkOffset+8, binaryChunkOffset+8+binLen);
+        }
+        this._parseJSON(json, path, binaryBuffer, onLoad, onError);
+      },
+      _parseJSON: function(json, path, binaryBuffer, onLoad, onError) {
+        // Parser simplifié — utilise le parser natif via ObjectLoader trick
+        // On passe par fetch + ObjectURL pour les GLB simples
+        try {
+          var scope = this;
+          var blob = new Blob([JSON.stringify(json)], {type:'application/json'});
+          // Fallback : retourner un groupe vide avec les données brutes
+          var group = new THREE.Group();
+          group._gltfJson = json;
+          group._gltfBinary = binaryBuffer;
+          onLoad({scene: group, scenes: [group], animations: [], cameras: []});
+        } catch(e) {
+          if(onError) onError(e);
+        }
+      }
+    });
+    return GLTFLoader;
+  })();
+})();
+</script>
+<script>
+// ─── SCENE THREE.JS ──────────────────────────────────────────────
+const container = document.getElementById('brainContainer');
+const W = 420, H = 300;
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(W, H);
 renderer.setClearColor(0x000000, 0);
@@ -244,94 +194,136 @@ container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000);
-camera.position.set(0, 0, 220);
+camera.position.set(0, 0, 3.5);
 
-// Lumières
-scene.add(new THREE.AmbientLight(0x001133, 1.5));
-const ptLight = new THREE.PointLight(0x0088ff, 2, 500);
-ptLight.position.set(50, 50, 100);
+scene.add(new THREE.AmbientLight(0x001133, 2));
+const ptLight = new THREE.PointLight(0x0088ff, 3, 20);
+ptLight.position.set(2, 2, 3);
 scene.add(ptLight);
-const ptLight2 = new THREE.PointLight(0x00ffcc, 1.5, 500);
-ptLight2.position.set(-50, -30, 80);
+const ptLight2 = new THREE.PointLight(0x00ffcc, 2, 20);
+ptLight2.position.set(-2, -1, 2);
 scene.add(ptLight2);
 
 const group = new THREE.Group();
 scene.add(group);
 
-// Chargement du cerveau GLB
-const loader = new THREE.GLTFLoader();
-let brainMesh = null;
 let synapseNodes = [];
 let synapsePulses = [];
 let synapseLines = null;
+let currentState = 'idle';
+let jarvisActive = false;
 
-loader.load('/static/models/brain_human.glb', (gltf) => {
-  const model = gltf.scene;
-
-  // Centrer le modèle
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-
-  // Matériau holographique : wireframe bleu foncé semi-transparent
-  model.traverse((child) => {
-    if (child.isMesh) {
-      child.material = new THREE.MeshPhongMaterial({
-        color: 0x021828,
-        emissive: 0x030e1e,
-        transparent: true,
-        opacity: 0.22,
-        wireframe: false,
-        side: THREE.FrontSide,
-      });
-      // Couche wireframe
-      const wireMat = new THREE.MeshBasicMaterial({
-        color: 0x0a3a5a,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.15,
-      });
-      const wireMesh = new THREE.Mesh(child.geometry, wireMat);
-      child.add(wireMesh);
-      brainMesh = child;
-    }
+// ─── CHARGEMENT GLB via fetch ─────────────────────────────────────
+fetch('/static/models/brain_human.glb')
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.arrayBuffer();
+  })
+  .then(buffer => {
+    console.log('[JARVIS] GLB reçu, taille:', buffer.byteLength);
+    parseGLB(buffer);
+  })
+  .catch(err => {
+    console.error('[JARVIS] Erreur fetch GLB:', err);
+    buildFallback();
   });
 
-  group.add(model);
+function parseGLB(buffer) {
+  try {
+    const view = new DataView(buffer);
+    const magic = String.fromCharCode(
+      view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3)
+    );
+    if (magic !== 'glTF') throw new Error('Pas un GLB valide');
 
-  // Générer les noeuds synaptiques à la surface du cerveau
-  buildSynapses(model);
-}, undefined, (err) => {
-  console.error('Erreur chargement GLB:', err);
-  buildFallbackBrain();
-});
+    const jsonLen = view.getUint32(12, true);
+    const jsonBytes = new Uint8Array(buffer, 20, jsonLen);
+    const jsonText = new TextDecoder().decode(jsonBytes);
+    const gltf = JSON.parse(jsonText);
 
-function buildSynapses(model) {
-  // Extraire des points à la surface du cerveau
+    const binOffset = 20 + jsonLen;
+    const binLen = view.getUint32(binOffset, true);
+    const binBuffer = buffer.slice(binOffset + 8, binOffset + 8 + binLen);
+
+    console.log('[JARVIS] JSON GLTF parsé, meshes:', gltf.meshes ? gltf.meshes.length : 0);
+    buildFromGLTF(gltf, binBuffer);
+  } catch(e) {
+    console.error('[JARVIS] Erreur parse GLB:', e);
+    buildFallback();
+  }
+}
+
+function buildFromGLTF(gltf, binBuffer) {
   const points = [];
-  model.traverse((child) => {
-    if (child.isMesh && child.geometry) {
-      const pos = child.geometry.attributes.position;
-      const step = Math.floor(pos.count / 140);
-      for (let i = 0; i < pos.count; i += step) {
-        const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
-        child.localToWorld(v);
-        points.push(v);
-      }
-    }
-  });
 
-  // Limiter à 90 points répartis
-  synapseNodes = points.slice(0, 90);
+  try {
+    if (!gltf.meshes || gltf.meshes.length === 0) throw new Error('Pas de meshes');
 
-  // Connexions entre noeuds proches
-  const lineVerts = [];
+    gltf.meshes.forEach(mesh => {
+      mesh.primitives.forEach(prim => {
+        const posAccessorIdx = prim.attributes.POSITION;
+        if (posAccessorIdx === undefined) return;
+
+        const accessor = gltf.accessors[posAccessorIdx];
+        const bufView = gltf.bufferViews[accessor.bufferView];
+        const byteOffset = (bufView.byteOffset || 0) + (accessor.byteOffset || 0);
+        const count = accessor.count;
+        const floats = new Float32Array(binBuffer, byteOffset, count * 3);
+
+        // Échantillonner les points
+        const step = Math.max(1, Math.floor(count / 100));
+        for (let i = 0; i < count && points.length < 100; i += step) {
+          points.push(new THREE.Vector3(floats[i*3], floats[i*3+1], floats[i*3+2]));
+        }
+      });
+    });
+
+    console.log('[JARVIS] Points extraits:', points.length);
+  } catch(e) {
+    console.warn('[JARVIS] Extraction points échouée:', e);
+  }
+
+  if (points.length < 10) {
+    console.warn('[JARVIS] Pas assez de points, fallback');
+    buildFallback();
+    return;
+  }
+
+  // Normaliser les points dans une sphère unité
+  const box = new THREE.Box3();
+  points.forEach(p => box.expandByPoint(p));
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const scale = 1.8 / maxDim;
+  points.forEach(p => { p.sub(center).multiplyScalar(scale); });
+
+  // Silhouette wireframe du cerveau à partir des points
+  buildWireframeBrain(points);
+
+  synapseNodes = points;
+  buildSynapses();
+}
+
+function buildWireframeBrain(points) {
+  // Nuage de points représentant la surface
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(points.length * 3);
+  points.forEach((p, i) => { pos[i*3]=p.x; pos[i*3+1]=p.y; pos[i*3+2]=p.z; });
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({ color: 0x083a5a, size: 0.012, transparent: true, opacity: 0.4 });
+  group.add(new THREE.Points(geo, mat));
+}
+
+function buildSynapses() {
   const connections = [];
+  const lineVerts = [];
+
   for (let i = 0; i < synapseNodes.length; i++) {
     for (let j = i+1; j < synapseNodes.length; j++) {
       const d = synapseNodes[i].distanceTo(synapseNodes[j]);
-      if (d < 38 && Math.random() < 0.5) {
-        connections.push({a: i, b: j});
+      if (d < 0.45 && Math.random() < 0.5) {
+        connections.push({a:i, b:j});
         lineVerts.push(
           synapseNodes[i].x, synapseNodes[i].y, synapseNodes[i].z,
           synapseNodes[j].x, synapseNodes[j].y, synapseNodes[j].z
@@ -340,70 +332,79 @@ function buildSynapses(model) {
     }
   }
 
-  // Lignes de connexion statiques
-  const lineGeo = new THREE.BufferGeometry();
-  lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lineVerts), 3));
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x0a3a6a, transparent: true, opacity: 0.2 });
-  synapseLines = new THREE.LineSegments(lineGeo, lineMat);
-  group.add(synapseLines);
+  if (lineVerts.length > 0) {
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lineVerts), 3));
+    synapseLines = new THREE.LineSegments(lg,
+      new THREE.LineBasicMaterial({ color: 0x0a3a6a, transparent: true, opacity: 0.2 }));
+    group.add(synapseLines);
+  }
 
-  // Points neurones
-  const nodeGeo = new THREE.BufferGeometry();
-  const nodePosArr = new Float32Array(synapseNodes.length * 3);
-  synapseNodes.forEach((n, i) => { nodePosArr[i*3]=n.x; nodePosArr[i*3+1]=n.y; nodePosArr[i*3+2]=n.z; });
-  nodeGeo.setAttribute('position', new THREE.BufferAttribute(nodePosArr, 3));
-  const nodeMat = new THREE.PointsMaterial({ color: 0x00ccff, size: 1.2, transparent: true, opacity: 0.7 });
-  group.add(new THREE.Points(nodeGeo, nodeMat));
+  // Neurones
+  const ng = new THREE.BufferGeometry();
+  const np = new Float32Array(synapseNodes.length * 3);
+  synapseNodes.forEach((n,i) => { np[i*3]=n.x; np[i*3+1]=n.y; np[i*3+2]=n.z; });
+  ng.setAttribute('position', new THREE.BufferAttribute(np, 3));
+  group.add(new THREE.Points(ng,
+    new THREE.PointsMaterial({ color: 0x00ccff, size: 0.022, transparent: true, opacity: 0.85 })));
 
-  // Créer les pulses
-  const pulseColors = [0x00d4ff, 0x00ffcc, 0x4488ff, 0x00eeff, 0x22ffaa];
-  const pulseSphereGeo = new THREE.SphereGeometry(1.2, 6, 6);
-  for (let k = 0; k < 30; k++) {
-    const ci = Math.floor(Math.random() * connections.length);
-    const col = pulseColors[k % pulseColors.length];
-    const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 });
-    const mesh = new THREE.Mesh(pulseSphereGeo, mat);
+  // Pulses
+  const cols = [0x00d4ff, 0x00ffcc, 0x4488ff, 0x00eeff, 0x22ffaa];
+  const pGeo = new THREE.SphereGeometry(0.018, 6, 6);
+  for (let k = 0; k < Math.min(28, connections.length); k++) {
+    const col = cols[k % cols.length];
+    const mesh = new THREE.Mesh(pGeo,
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 }));
     group.add(mesh);
-
-    // Traînée
     const tGeo = new THREE.BufferGeometry();
     tGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-    const tMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.5 });
-    const trail = new THREE.Line(tGeo, tMat);
+    const trail = new THREE.Line(tGeo,
+      new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.5 }));
     group.add(trail);
-
     synapsePulses.push({
-      mesh, trail, tGeo, connections, ci,
-      t: Math.random(), speed: 0.008 + Math.random() * 0.012,
+      mesh, trail, tGeo, connections,
+      ci: Math.floor(Math.random() * connections.length),
+      t: Math.random(),
+      speed: 0.007 + Math.random() * 0.012,
       dir: Math.random() > 0.5 ? 1 : -1
     });
   }
+
+  console.log('[JARVIS] Synapses construites:', connections.length, 'connexions,', synapsePulses.length, 'pulses');
 }
 
-function buildFallbackBrain() {
-  // Cerveau de secours si le GLB ne charge pas
-  const geo = new THREE.SphereGeometry(80, 24, 24);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x0a3a5a, wireframe: true, transparent: true, opacity: 0.2 });
-  group.add(new THREE.Mesh(geo, mat));
+function buildFallback() {
+  console.log('[JARVIS] Mode fallback — cerveau généré procéduralement');
+  // Générer des points dans la forme d'un cerveau
+  const points = [];
+  for (let i = 0; i < 90; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const side = Math.random() > 0.5 ? 0.3 : -0.3;
+    const r = 0.6 + Math.random() * 0.35;
+    const noise = 0.1 * Math.sin(theta * 4) * Math.cos(phi * 3);
+    points.push(new THREE.Vector3(
+      r * Math.sin(phi) * Math.cos(theta) * 1.2 + side + noise,
+      r * Math.sin(phi) * Math.sin(theta) * 0.85 + noise,
+      r * Math.cos(phi) * 0.9
+    ));
+  }
+  synapseNodes = points;
+  buildWireframeBrain(points);
+  buildSynapses();
 }
 
-// ─── ANIMATION ────────────────────────────────────────────────────
+// ─── ANIMATION ───────────────────────────────────────────────────
 let t = 0;
-let currentState = 'idle';
-
 function animate() {
   requestAnimationFrame(animate);
   t += 0.008;
-
-  // Rotation lente
   group.rotation.y = t * 0.15;
   group.rotation.x = Math.sin(t * 0.08) * 0.06;
 
-  // Pulsation selon état
-  const pulseSpeed = currentState === 'thinking' ? 3 : currentState === 'speaking' ? 5 : 1.2;
-  if (synapseLines) synapseLines.material.opacity = 0.12 + 0.1 * Math.sin(t * pulseSpeed);
+  const ps = currentState === 'thinking' ? 3 : currentState === 'speaking' ? 5 : 1.2;
+  if (synapseLines) synapseLines.material.opacity = 0.12 + 0.1 * Math.sin(t * ps);
 
-  // Mise à jour pulses synaptiques
   synapsePulses.forEach((p, k) => {
     p.t += p.speed * p.dir;
     if (p.t > 1 || p.t < 0) {
@@ -411,56 +412,48 @@ function animate() {
       p.ci = Math.floor(Math.random() * p.connections.length);
     }
     p.t = Math.max(0, Math.min(1, p.t));
-
     const c = p.connections[p.ci];
     if (!c) return;
     const na = synapseNodes[c.a], nb = synapseNodes[c.b];
     if (!na || !nb) return;
-
-    const px = na.x + (nb.x - na.x) * p.t;
-    const py = na.y + (nb.y - na.y) * p.t;
-    const pz = na.z + (nb.z - na.z) * p.t;
+    const px = na.x+(nb.x-na.x)*p.t, py = na.y+(nb.y-na.y)*p.t, pz = na.z+(nb.z-na.z)*p.t;
     p.mesh.position.set(px, py, pz);
-
-    const scale = 0.6 + 0.5 * Math.sin(t * 4 + k * 0.6);
-    p.mesh.scale.setScalar(scale);
-    p.mesh.material.opacity = 0.7 + 0.3 * Math.sin(t * 5 + k);
-
-    const trailT = Math.max(0, p.t - 0.15 * p.dir);
-    const tx = na.x + (nb.x - na.x) * trailT;
-    const ty = na.y + (nb.y - na.y) * trailT;
-    const tz = na.z + (nb.z - na.z) * trailT;
+    p.mesh.scale.setScalar(0.6 + 0.5*Math.sin(t*4+k*0.6));
+    p.mesh.material.opacity = 0.7 + 0.3*Math.sin(t*5+k);
+    const trailT = Math.max(0, p.t - 0.15*p.dir);
+    const tx = na.x+(nb.x-na.x)*trailT, ty = na.y+(nb.y-na.y)*trailT, tz = na.z+(nb.z-na.z)*trailT;
     const arr = p.tGeo.attributes.position.array;
-    arr[0]=tx; arr[1]=ty; arr[2]=tz;
-    arr[3]=px; arr[4]=py; arr[5]=pz;
+    arr[0]=tx;arr[1]=ty;arr[2]=tz;arr[3]=px;arr[4]=py;arr[5]=pz;
     p.tGeo.attributes.position.needsUpdate = true;
-    p.trail.material.opacity = 0.35 + 0.25 * Math.sin(t * 5 + k);
+    p.trail.material.opacity = 0.35 + 0.25*Math.sin(t*5+k);
   });
 
-  ptLight.intensity = 2 + 1.2 * Math.sin(t * 1.5);
+  ptLight.intensity = 2.5 + 1.5*Math.sin(t*1.5);
   renderer.render(scene, camera);
 }
 animate();
 
-// ─── HORLOGE ──────────────────────────────────────────────────────
-function updateClock() {
-  const now = new Date();
+// ─── HORLOGE ─────────────────────────────────────────────────────
+setInterval(() => {
+  const n = new Date();
   document.getElementById('stat-time').textContent =
-    now.getHours().toString().padStart(2,'0') + ':' +
-    now.getMinutes().toString().padStart(2,'0') + ':' +
-    now.getSeconds().toString().padStart(2,'0');
-}
-setInterval(updateClock, 1000); updateClock();
+    String(n.getHours()).padStart(2,'0')+':'+
+    String(n.getMinutes()).padStart(2,'0')+':'+
+    String(n.getSeconds()).padStart(2,'0');
+}, 1000);
 
-// ─── SOCKET.IO ────────────────────────────────────────────────────
+// ─── SOCKET.IO ───────────────────────────────────────────────────
 const socket = io();
+
+socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
+socket.on('disconnect', () => console.log('[JARVIS] Socket déconnecté'));
 
 socket.on('status', (data) => {
   currentState = data.state;
   const badge = document.getElementById('statusBadge');
   const text = document.getElementById('statusText');
   badge.className = 'status-ring ' + data.state;
-  const labels = { listening: 'EN ÉCOUTE', thinking: 'RÉFLEXION...', speaking: 'EN COURS...', idle: 'EN VEILLE' };
+  const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE' };
   text.textContent = labels[data.state] || data.state.toUpperCase();
 });
 
@@ -479,19 +472,15 @@ socket.on('response', (data) => {
 });
 
 function addMessage(role, text) {
-  const history = document.getElementById('history');
-  const msg = document.createElement('div');
-  msg.className = 'msg';
-  msg.innerHTML = `
-    <span class="msg-who ${role}">${role === 'user' ? '— MONSIEUR' : '— JARVIS'}</span>
-    <div class="msg-bubble ${role}">${text}</div>
-  `;
-  history.appendChild(msg);
-  history.scrollTop = history.scrollHeight;
+  const h = document.getElementById('history');
+  const m = document.createElement('div');
+  m.className = 'msg';
+  m.innerHTML = '<span class="msg-who '+role+'">'+(role==='user'?'— MONSIEUR':'— JARVIS')+'</span><div class="msg-bubble '+role+'">'+text+'</div>';
+  h.appendChild(m);
+  h.scrollTop = h.scrollHeight;
 }
 
-// ─── CONTRÔLES ────────────────────────────────────────────────────
-let jarvisActive = false;
+// ─── BOUTON ──────────────────────────────────────────────────────
 function toggleJarvis() {
   const btn = document.getElementById('btnStart');
   jarvisActive = !jarvisActive;
