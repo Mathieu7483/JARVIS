@@ -20,8 +20,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 .topbar-info span{display:flex;align-items:center;gap:6px}
 .live-dot{width:5px;height:5px;border-radius:50%;background:var(--c-cyan);animation:blink 1.4s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
-.center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;position:relative;overflow:hidden}
-.center::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--c-border) 1px,transparent 1px),linear-gradient(90deg,var(--c-border) 1px,transparent 1px);background-size:40px 40px;opacity:0.3}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;position:relative;overflow:hidden}
+.center::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--c-border) 1px,transparent 1px),linear-gradient(90deg,var(--c-border) 1px,transparent 1px);background-size:40px 40px;opacity:0.25}
 #brainContainer{position:relative;z-index:1}
 .status-ring{position:relative;z-index:1;display:flex;align-items:center;gap:10px;padding:6px 18px;border:1px solid var(--c-dim);border-radius:20px;font-size:10px;letter-spacing:3px;color:var(--c-cyan);background:rgba(0,20,40,0.8);transition:all 0.4s}
 .status-ring.thinking{border-color:#ff8800;color:#ff8800}
@@ -106,103 +106,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
   </footer>
 </div>
 
-<!-- Scripts UMD classiques -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
-// GLTFLoader UMD r128 inline (évite les conflits de version)
-(function(){
-  if(typeof THREE === 'undefined') return;
-
-  THREE.GLTFLoader = (function() {
-    function GLTFLoader(manager) {
-      THREE.Loader.call(this, manager);
-      this.dracoLoader = null;
-    }
-    GLTFLoader.prototype = Object.assign(Object.create(THREE.Loader.prototype), {
-      constructor: GLTFLoader,
-      load: function(url, onLoad, onProgress, onError) {
-        var scope = this;
-        var loader = new THREE.FileLoader(this.manager);
-        loader.setPath(this.path);
-        loader.setResponseType('arraybuffer');
-        loader.setRequestHeader(this.requestHeader);
-        loader.setWithCredentials(this.withCredentials);
-        loader.load(url, function(data) {
-          try { scope.parse(data, url, onLoad, onError); }
-          catch(e) { if(onError) onError(e); else throw e; }
-        }, onProgress, onError);
-      },
-      setDRACOLoader: function(dl) { this.dracoLoader = dl; return this; },
-      parse: function(data, path, onLoad, onError) {
-        // Parse binaire GLB
-        var magic = THREE.LoaderUtils.decodeText(new Uint8Array(data, 0, 4));
-        if(magic === 'glTF') {
-          this._parseBinary(data, path, onLoad, onError);
-        } else {
-          var text = THREE.LoaderUtils.decodeText(new Uint8Array(data));
-          var json = JSON.parse(text);
-          this._parseJSON(json, path, null, onLoad, onError);
-        }
-      },
-      _parseBinary: function(data, path, onLoad, onError) {
-        var view = new DataView(data);
-        var version = view.getUint32(4, true);
-        var length = view.getUint32(8, true);
-        var chunkIndex = 12;
-        var jsonChunkLength = view.getUint32(chunkIndex, true);
-        var jsonChunkType = view.getUint32(chunkIndex+4, true);
-        if(jsonChunkType !== 0x4E4F534A) { if(onError) onError(new Error('Invalid GLB')); return; }
-        var jsonText = THREE.LoaderUtils.decodeText(new Uint8Array(data, chunkIndex+8, jsonChunkLength));
-        var json = JSON.parse(jsonText);
-        var binaryChunkOffset = chunkIndex + 8 + jsonChunkLength;
-        var binaryBuffer = null;
-        if(binaryChunkOffset < data.byteLength) {
-          var binLen = view.getUint32(binaryChunkOffset, true);
-          binaryBuffer = data.slice(binaryChunkOffset+8, binaryChunkOffset+8+binLen);
-        }
-        this._parseJSON(json, path, binaryBuffer, onLoad, onError);
-      },
-      _parseJSON: function(json, path, binaryBuffer, onLoad, onError) {
-        // Parser simplifié — utilise le parser natif via ObjectLoader trick
-        // On passe par fetch + ObjectURL pour les GLB simples
-        try {
-          var scope = this;
-          var blob = new Blob([JSON.stringify(json)], {type:'application/json'});
-          // Fallback : retourner un groupe vide avec les données brutes
-          var group = new THREE.Group();
-          group._gltfJson = json;
-          group._gltfBinary = binaryBuffer;
-          onLoad({scene: group, scenes: [group], animations: [], cameras: []});
-        } catch(e) {
-          if(onError) onError(e);
-        }
-      }
-    });
-    return GLTFLoader;
-  })();
-})();
-</script>
-<script>
-// ─── SCENE THREE.JS ──────────────────────────────────────────────
+const W = 440, H = 320;
 const container = document.getElementById('brainContainer');
-const W = 420, H = 300;
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(W, H);
 renderer.setClearColor(0x000000, 0);
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000);
-camera.position.set(0, 0, 3.5);
-
-scene.add(new THREE.AmbientLight(0x001133, 2));
-const ptLight = new THREE.PointLight(0x0088ff, 3, 20);
-ptLight.position.set(2, 2, 3);
-scene.add(ptLight);
-const ptLight2 = new THREE.PointLight(0x00ffcc, 2, 20);
-ptLight2.position.set(-2, -1, 2);
-scene.add(ptLight2);
+const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 100);
+camera.position.set(0, 0, 3.2);
 
 const group = new THREE.Group();
 scene.add(group);
@@ -213,116 +129,40 @@ let synapseLines = null;
 let currentState = 'idle';
 let jarvisActive = false;
 
-// ─── CHARGEMENT GLB via fetch ─────────────────────────────────────
-fetch('/static/models/brain_human.glb')
-  .then(r => {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.arrayBuffer();
-  })
-  .then(buffer => {
-    console.log('[JARVIS] GLB reçu, taille:', buffer.byteLength);
-    parseGLB(buffer);
+// Couleurs des pulses selon état
+const PULSE_COLORS_IDLE     = [0x00d4ff, 0x0088cc, 0x00aaff, 0x0066bb];
+const PULSE_COLORS_THINKING = [0xff8800, 0xffaa00, 0xff6600];
+const PULSE_COLORS_SPEAKING = [0x00ffcc, 0x00ffaa, 0x22ffdd];
+
+// ─── CHARGEMENT DES POINTS ───────────────────────────────────────
+fetch('/static/brain_points.json')
+  .then(r => r.json())
+  .then(points => {
+    console.log('[JARVIS] ' + points.length + ' points chargés');
+    synapseNodes = points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    buildSynapses(PULSE_COLORS_IDLE);
   })
   .catch(err => {
-    console.error('[JARVIS] Erreur fetch GLB:', err);
+    console.error('[JARVIS] Erreur chargement points:', err);
     buildFallback();
   });
 
-function parseGLB(buffer) {
-  try {
-    const view = new DataView(buffer);
-    const magic = String.fromCharCode(
-      view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3)
-    );
-    if (magic !== 'glTF') throw new Error('Pas un GLB valide');
+function buildSynapses(pulseColors) {
+  // Nettoyer l'ancien réseau
+  while(group.children.length > 0) group.remove(group.children[0]);
+  synapsePulses = [];
+  synapseLines = null;
 
-    const jsonLen = view.getUint32(12, true);
-    const jsonBytes = new Uint8Array(buffer, 20, jsonLen);
-    const jsonText = new TextDecoder().decode(jsonBytes);
-    const gltf = JSON.parse(jsonText);
-
-    const binOffset = 20 + jsonLen;
-    const binLen = view.getUint32(binOffset, true);
-    const binBuffer = buffer.slice(binOffset + 8, binOffset + 8 + binLen);
-
-    console.log('[JARVIS] JSON GLTF parsé, meshes:', gltf.meshes ? gltf.meshes.length : 0);
-    buildFromGLTF(gltf, binBuffer);
-  } catch(e) {
-    console.error('[JARVIS] Erreur parse GLB:', e);
-    buildFallback();
-  }
-}
-
-function buildFromGLTF(gltf, binBuffer) {
-  const points = [];
-
-  try {
-    if (!gltf.meshes || gltf.meshes.length === 0) throw new Error('Pas de meshes');
-
-    gltf.meshes.forEach(mesh => {
-      mesh.primitives.forEach(prim => {
-        const posAccessorIdx = prim.attributes.POSITION;
-        if (posAccessorIdx === undefined) return;
-
-        const accessor = gltf.accessors[posAccessorIdx];
-        const bufView = gltf.bufferViews[accessor.bufferView];
-        const byteOffset = (bufView.byteOffset || 0) + (accessor.byteOffset || 0);
-        const count = accessor.count;
-        const floats = new Float32Array(binBuffer, byteOffset, count * 3);
-
-        // Échantillonner les points
-        const step = Math.max(1, Math.floor(count / 100));
-        for (let i = 0; i < count && points.length < 100; i += step) {
-          points.push(new THREE.Vector3(floats[i*3], floats[i*3+1], floats[i*3+2]));
-        }
-      });
-    });
-
-    console.log('[JARVIS] Points extraits:', points.length);
-  } catch(e) {
-    console.warn('[JARVIS] Extraction points échouée:', e);
-  }
-
-  if (points.length < 10) {
-    console.warn('[JARVIS] Pas assez de points, fallback');
-    buildFallback();
-    return;
-  }
-
-  // Normaliser les points dans une sphère unité
-  const box = new THREE.Box3();
-  points.forEach(p => box.expandByPoint(p));
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const scale = 1.8 / maxDim;
-  points.forEach(p => { p.sub(center).multiplyScalar(scale); });
-
-  // Silhouette wireframe du cerveau à partir des points
-  buildWireframeBrain(points);
-
-  synapseNodes = points;
-  buildSynapses();
-}
-
-function buildWireframeBrain(points) {
-  // Nuage de points représentant la surface
-  const geo = new THREE.BufferGeometry();
-  const pos = new Float32Array(points.length * 3);
-  points.forEach((p, i) => { pos[i*3]=p.x; pos[i*3+1]=p.y; pos[i*3+2]=p.z; });
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({ color: 0x083a5a, size: 0.012, transparent: true, opacity: 0.4 });
-  group.add(new THREE.Points(geo, mat));
-}
-
-function buildSynapses() {
   const connections = [];
   const lineVerts = [];
+
+  // Distance adaptée à la densité des points
+  const distMax = 0.28;
 
   for (let i = 0; i < synapseNodes.length; i++) {
     for (let j = i+1; j < synapseNodes.length; j++) {
       const d = synapseNodes[i].distanceTo(synapseNodes[j]);
-      if (d < 0.45 && Math.random() < 0.5) {
+      if (d < distMax && Math.random() < 0.4) {
         connections.push({a:i, b:j});
         lineVerts.push(
           synapseNodes[i].x, synapseNodes[i].y, synapseNodes[i].z,
@@ -332,103 +172,130 @@ function buildSynapses() {
     }
   }
 
+  console.log('[JARVIS] ' + connections.length + ' connexions synaptiques');
+
+  // Lignes statiques du réseau
   if (lineVerts.length > 0) {
     const lg = new THREE.BufferGeometry();
     lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lineVerts), 3));
     synapseLines = new THREE.LineSegments(lg,
-      new THREE.LineBasicMaterial({ color: 0x0a3a6a, transparent: true, opacity: 0.2 }));
+      new THREE.LineBasicMaterial({ color: 0x003a5a, transparent: true, opacity: 0.15 }));
     group.add(synapseLines);
   }
 
-  // Neurones
+  // Neurones (petits points lumineux)
   const ng = new THREE.BufferGeometry();
   const np = new Float32Array(synapseNodes.length * 3);
   synapseNodes.forEach((n,i) => { np[i*3]=n.x; np[i*3+1]=n.y; np[i*3+2]=n.z; });
   ng.setAttribute('position', new THREE.BufferAttribute(np, 3));
   group.add(new THREE.Points(ng,
-    new THREE.PointsMaterial({ color: 0x00ccff, size: 0.022, transparent: true, opacity: 0.85 })));
+    new THREE.PointsMaterial({ color: 0x0088bb, size: 0.008, transparent: true, opacity: 0.5 })));
 
-  // Pulses
-  const cols = [0x00d4ff, 0x00ffcc, 0x4488ff, 0x00eeff, 0x22ffaa];
-  const pGeo = new THREE.SphereGeometry(0.018, 6, 6);
-  for (let k = 0; k < Math.min(28, connections.length); k++) {
-    const col = cols[k % cols.length];
+  // Pulses lumineux avec traînées
+  const pGeo = new THREE.SphereGeometry(0.012, 5, 5);
+  const pulseCount = Math.min(50, connections.length);
+
+  for (let k = 0; k < pulseCount; k++) {
+    const col = pulseColors[k % pulseColors.length];
+
+    // Sphère pulse
     const mesh = new THREE.Mesh(pGeo,
       new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 }));
     group.add(mesh);
+
+    // Traînée lumineuse
     const tGeo = new THREE.BufferGeometry();
     tGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
     const trail = new THREE.Line(tGeo,
-      new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.5 }));
+      new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.6, linewidth: 2 }));
     group.add(trail);
+
     synapsePulses.push({
       mesh, trail, tGeo, connections,
       ci: Math.floor(Math.random() * connections.length),
       t: Math.random(),
-      speed: 0.007 + Math.random() * 0.012,
+      speed: 0.006 + Math.random() * 0.01,
       dir: Math.random() > 0.5 ? 1 : -1
     });
   }
-
-  console.log('[JARVIS] Synapses construites:', connections.length, 'connexions,', synapsePulses.length, 'pulses');
 }
 
 function buildFallback() {
-  console.log('[JARVIS] Mode fallback — cerveau généré procéduralement');
-  // Générer des points dans la forme d'un cerveau
-  const points = [];
-  for (let i = 0; i < 90; i++) {
+  // Cerveau procédural si JSON manquant
+  const pts = [];
+  for (let i = 0; i < 300; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
-    const side = Math.random() > 0.5 ? 0.3 : -0.3;
-    const r = 0.6 + Math.random() * 0.35;
-    const noise = 0.1 * Math.sin(theta * 4) * Math.cos(phi * 3);
-    points.push(new THREE.Vector3(
-      r * Math.sin(phi) * Math.cos(theta) * 1.2 + side + noise,
-      r * Math.sin(phi) * Math.sin(theta) * 0.85 + noise,
-      r * Math.cos(phi) * 0.9
+    const side = Math.random() > 0.5 ? 0.25 : -0.25;
+    const r = 0.55 + Math.random() * 0.3;
+    const nx = 0.08 * Math.sin(theta * 5) * Math.cos(phi * 4);
+    pts.push(new THREE.Vector3(
+      r * Math.sin(phi) * Math.cos(theta) * 1.15 + side + nx,
+      r * Math.sin(phi) * Math.sin(theta) * 0.82 + nx * 0.5,
+      r * Math.cos(phi) * 0.88
     ));
   }
-  synapseNodes = points;
-  buildWireframeBrain(points);
-  buildSynapses();
+  synapseNodes = pts;
+  buildSynapses(PULSE_COLORS_IDLE);
 }
 
 // ─── ANIMATION ───────────────────────────────────────────────────
 let t = 0;
 function animate() {
   requestAnimationFrame(animate);
-  t += 0.008;
-  group.rotation.y = t * 0.15;
-  group.rotation.x = Math.sin(t * 0.08) * 0.06;
+  t += 0.007;
 
-  const ps = currentState === 'thinking' ? 3 : currentState === 'speaking' ? 5 : 1.2;
-  if (synapseLines) synapseLines.material.opacity = 0.12 + 0.1 * Math.sin(t * ps);
+  // Rotation lente et naturelle
+  group.rotation.y = t * 0.12;
+  group.rotation.x = Math.sin(t * 0.07) * 0.05;
 
+  // Pulsation réseau selon état
+  if (synapseLines) {
+    const baseOpacity = currentState === 'thinking' ? 0.25 : currentState === 'speaking' ? 0.3 : 0.12;
+    const pulseSpeed  = currentState === 'thinking' ? 4 : currentState === 'speaking' ? 6 : 1;
+    synapseLines.material.opacity = baseOpacity + 0.08 * Math.sin(t * pulseSpeed);
+  }
+
+  // Mise à jour pulses
   synapsePulses.forEach((p, k) => {
     p.t += p.speed * p.dir;
     if (p.t > 1 || p.t < 0) {
       p.dir *= -1;
       p.ci = Math.floor(Math.random() * p.connections.length);
+      // Petite pause aléatoire
+      if (Math.random() < 0.15) p.speed = 0.003 + Math.random() * 0.008;
     }
     p.t = Math.max(0, Math.min(1, p.t));
+
     const c = p.connections[p.ci];
     if (!c) return;
     const na = synapseNodes[c.a], nb = synapseNodes[c.b];
     if (!na || !nb) return;
-    const px = na.x+(nb.x-na.x)*p.t, py = na.y+(nb.y-na.y)*p.t, pz = na.z+(nb.z-na.z)*p.t;
+
+    // Position du pulse
+    const px = na.x + (nb.x-na.x)*p.t;
+    const py = na.y + (nb.y-na.y)*p.t;
+    const pz = na.z + (nb.z-na.z)*p.t;
     p.mesh.position.set(px, py, pz);
-    p.mesh.scale.setScalar(0.6 + 0.5*Math.sin(t*4+k*0.6));
-    p.mesh.material.opacity = 0.7 + 0.3*Math.sin(t*5+k);
-    const trailT = Math.max(0, p.t - 0.15*p.dir);
-    const tx = na.x+(nb.x-na.x)*trailT, ty = na.y+(nb.y-na.y)*trailT, tz = na.z+(nb.z-na.z)*trailT;
+
+    // Pulsation taille
+    const sc = 0.7 + 0.5 * Math.sin(t * 5 + k * 0.7);
+    p.mesh.scale.setScalar(sc);
+    p.mesh.material.opacity = 0.75 + 0.25 * Math.sin(t * 6 + k);
+
+    // Traînée
+    const trailLen = 0.18;
+    const trailT = Math.max(0, Math.min(1, p.t - trailLen * p.dir));
+    const tx = na.x + (nb.x-na.x)*trailT;
+    const ty = na.y + (nb.y-na.y)*trailT;
+    const tz = na.z + (nb.z-na.z)*trailT;
     const arr = p.tGeo.attributes.position.array;
-    arr[0]=tx;arr[1]=ty;arr[2]=tz;arr[3]=px;arr[4]=py;arr[5]=pz;
+    arr[0]=tx; arr[1]=ty; arr[2]=tz;
+    arr[3]=px; arr[4]=py; arr[5]=pz;
     p.tGeo.attributes.position.needsUpdate = true;
-    p.trail.material.opacity = 0.35 + 0.25*Math.sin(t*5+k);
+    p.trail.material.opacity = 0.4 + 0.3 * Math.sin(t * 6 + k);
   });
 
-  ptLight.intensity = 2.5 + 1.5*Math.sin(t*1.5);
   renderer.render(scene, camera);
 }
 animate();
@@ -446,15 +313,23 @@ setInterval(() => {
 const socket = io();
 
 socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
-socket.on('disconnect', () => console.log('[JARVIS] Socket déconnecté'));
 
 socket.on('status', (data) => {
   currentState = data.state;
   const badge = document.getElementById('statusBadge');
-  const text = document.getElementById('statusText');
+  const text  = document.getElementById('statusText');
   badge.className = 'status-ring ' + data.state;
   const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE' };
   text.textContent = labels[data.state] || data.state.toUpperCase();
+
+  // Changer couleur des pulses selon l'état
+  const cols = data.state === 'thinking' ? PULSE_COLORS_THINKING
+             : data.state === 'speaking' ? PULSE_COLORS_SPEAKING
+             : PULSE_COLORS_IDLE;
+  synapsePulses.forEach((p, k) => {
+    p.mesh.material.color.setHex(cols[k % cols.length]);
+    p.trail.material.color.setHex(cols[k % cols.length]);
+  });
 });
 
 socket.on('transcription', (data) => {
