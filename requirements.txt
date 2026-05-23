@@ -1,0 +1,15 @@
+# --- Environnement et Configuration ---
+python-dotenv==1.0.1
+
+# --- Serveur Web et Communication Temps Réel ---
+Flask==3.0.3
+Flask-SocketIO==5.3.6
+
+# --- Client IA Locale ---
+ollama==0.2.1
+
+# --- Audio & Matériel (Dépendances standard pour ears/mouth) ---
+SpeechRecognition==3.10.4
+PyAudio==0.2.14
+pyttsx3==2.90
+faster-whisper==1.0.3
