@@ -1,5 +1,5 @@
-from flask import Flask, render_template, jsonify, send_from_directory
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template, send_from_directory
+from flask_socketio import SocketIO
 import threading
 import sys
 import os
@@ -8,8 +8,8 @@ import os
 sys.path.insert(0, os.path.expanduser('~/JARVIS'))
 
 from app.speech.ears import Ears
-from app.core.processor import Brain
 from app.speech.mouth import Mouth
+from app.core.processor import Brain
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'jarvis-secret'
