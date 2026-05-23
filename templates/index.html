@@ -109,7 +109,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
-const W = 440, H = 320;
+const W = 800, H = 600;
 const container = document.getElementById('brainContainer');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(W, H);
@@ -126,6 +126,7 @@ scene.add(group);
 let synapseNodes = [];
 let synapsePulses = [];
 let synapseLines = null;
+let greenParticleSystem = null;
 let currentState = 'idle';
 let jarvisActive = false;
 
@@ -139,7 +140,14 @@ fetch('/static/brain_points.json')
   .then(r => r.json())
   .then(points => {
     console.log('[JARVIS] ' + points.length + ' points chargés');
-    synapseNodes = points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    
+    // CORRECTION DES AXES : 
+    // On remplace Y par Z, et on inverse le Y d'origine pour le remettre à l'endroit
+    synapseNodes = points.map(p => new THREE.Vector3(p[0], p[2], -p[1]));
+    
+    // Optionnel : Ajustement de la position globale si le cerveau est trop bas/haut
+    group.position.y = 0.2; 
+    
     buildSynapses(PULSE_COLORS_IDLE);
   })
   .catch(err => {
@@ -190,6 +198,16 @@ function buildSynapses(pulseColors) {
   ng.setAttribute('position', new THREE.BufferAttribute(np, 3));
   group.add(new THREE.Points(ng,
     new THREE.PointsMaterial({ color: 0x0088bb, size: 0.008, transparent: true, opacity: 0.5 })));
+  // Couche de points verts plus brillants pour les synapses actives
+  const greenMat = new THREE.PointsMaterial({
+    color: 0x00ffcc,       // Vert/Cyan technologique brillant
+    size: 0.015,           // Plus grosses que les bleues pour être visibles
+    transparent: true,
+    opacity: 0.6,
+    blending: THREE.AdditiveBlending
+  });
+  greenParticleSystem = new THREE.Points(ng.clone(), greenMat);
+  group.add(greenParticleSystem);
 
   // Pulses lumineux avec traînées
   const pGeo = new THREE.SphereGeometry(0.012, 5, 5);
@@ -256,6 +274,28 @@ function animate() {
     synapseLines.material.opacity = baseOpacity + 0.08 * Math.sin(t * pulseSpeed);
   }
 
+    // ─── ANIMATION DES PARTICULES VERTES SELON L'ÉTAT D'OLLAMA ───
+if (greenParticleSystem) {
+  if (currentState === 'thinking') {
+    // Mode Réflexion : Pulsation rapide de la taille et de l'intensité
+    const pulseThinking = Math.sin(t * 15); // Fréquence rapide
+    greenParticleSystem.material.size = 0.015 + 0.010 * pulseThinking;
+    greenParticleSystem.material.opacity = 0.5 + 0.5 * Math.sin(t * 20);
+    
+    // Légère distorsion rotationnelle chaotique pendant la réflexion
+    greenParticleSystem.rotation.z = Math.sin(t * 5) * 0.05;
+  } else if (currentState === 'speaking') {
+    // Mode Parole : Intensité stable, taille moyenne
+    greenParticleSystem.material.size = 0.012;
+    greenParticleSystem.material.opacity = 0.4 + 0.2 * Math.sin(t * 5);
+    greenParticleSystem.rotation.z = 0;
+  } else {
+    // Mode Veille / Écoute : Très discret, presque invisible
+    greenParticleSystem.material.size = 0.006;
+    greenParticleSystem.material.opacity = 0.15 + 0.05 * Math.sin(t * 2);
+    greenParticleSystem.rotation.z = 0;
+  }
+}
   // Mise à jour pulses
   synapsePulses.forEach((p, k) => {
     p.t += p.speed * p.dir;
