@@ -39,7 +39,7 @@ def jarvis_loop():
         mouth.parler(reponse)
         socketio.emit('status', {'state': 'listening'})
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html')
 
