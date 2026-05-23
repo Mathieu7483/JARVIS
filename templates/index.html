@@ -352,53 +352,106 @@ setInterval(() => {
 // ─── SOCKET.IO ───────────────────────────────────────────────────
 const socket = io();
 
-socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
+socket.on('connect', () => console.log('[JARVIS] Socket connecté au serveur Flask'));
 
+// Gestionnaire des états de la boucle principale
 socket.on('status', (data) => {
   currentState = data.state;
   const badge = document.getElementById('statusBadge');
   const text  = document.getElementById('statusText');
+  
   badge.className = 'status-ring ' + data.state;
-  const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE' };
+  
+  const labels = { 
+    listening: 'EN ÉCOUTE', 
+    thinking: 'RÉFLEXION...', 
+    speaking: 'EN COURS...', 
+    idle: 'EN VEILLE' 
+  };
   text.textContent = labels[data.state] || data.state.toUpperCase();
 
-  // Changer couleur des pulses selon l'état
+  // Ajustement de la couleur des synapses de Three.js en fonction du mode de Jarvis
   const cols = data.state === 'thinking' ? PULSE_COLORS_THINKING
              : data.state === 'speaking' ? PULSE_COLORS_SPEAKING
              : PULSE_COLORS_IDLE;
+             
   synapsePulses.forEach((p, k) => {
     p.mesh.material.color.setHex(cols[k % cols.length]);
     p.trail.material.color.setHex(cols[k % cols.length]);
   });
 });
 
+// Réception de la transcription de ta voix (Whisper)
 socket.on('transcription', (data) => {
-  document.getElementById('transText').textContent = data.text;
-  document.getElementById('transBox').classList.add('active');
-  setTimeout(() => document.getElementById('transBox').classList.remove('active'), 2000);
+  const transText = document.getElementById('transText');
+  transText.textContent = data.text;
+  
+  const transBox = document.getElementById('transBox');
+  transBox.classList.add('active');
+  
+  // On ajoute le bloc à l'historique latéral
   addMessage('user', data.text);
 });
 
+// Réception de la réponse textuelle générée par Ollama
 socket.on('response', (data) => {
-  document.getElementById('respText').textContent = data.text;
-  document.getElementById('respBox').classList.add('active');
-  setTimeout(() => document.getElementById('respBox').classList.remove('active'), 3000);
-  addMessage('jarvis', data.text);
+  const respBox = document.getElementById('respBox');
+  const respText = document.getElementById('respText');
+  
+  respBox.classList.add('active');
+  
+  // Effet d'écriture progressive pour simuler une IA vivante au centre de l'écran
+  typeWriter(respText, data.text, 0, () => {
+    // Une fois l'animation d'écriture finie, on l'ajoute proprement à l'historique de droite
+    addMessage('jarvis', data.text);
+    
+    // Extinction de la surbrillance de la boîte après 3 secondes
+    setTimeout(() => respBox.classList.remove('active'), 3000);
+  });
 });
 
-function addMessage(role, text) {
-  const h = document.getElementById('history');
-  const m = document.createElement('div');
-  m.className = 'msg';
-  m.innerHTML = '<span class="msg-who '+role+'">'+(role==='user'?'— MONSIEUR':'— JARVIS')+'</span><div class="msg-bubble '+role+'">'+text+'</div>';
-  h.appendChild(m);
-  h.scrollTop = h.scrollHeight;
+// ─── FONCTIONS UTILITAIRES ANIMATION ─────────────────────────────
+
+// Effet Teletype / Machine à écrire
+function typeWriter(element, text, index, callback) {
+  if (index < text.length) {
+    // On injecte le texte caractère par caractère avant le curseur clignotant
+    element.innerHTML = text.substring(0, index + 1) + '<span class="cursor"></span>';
+    
+    // Vitesse réglable : 25ms par caractère offre un excellent compromis réactivité/esthétique
+    setTimeout(() => {
+      typeWriter(element, text, index + 1, callback);
+    }, 25);
+  } else if (callback) {
+    callback();
+  }
 }
 
-// ─── BOUTON ──────────────────────────────────────────────────────
+// Ajout d'une ligne propre dans le panneau historique
+function addMessage(role, text) {
+  const h = document.getElementById('history');
+  
+  // Évite de dupliquer si le dernier message inséré est identique (sécurité WebSocket)
+  if (h.lastElementChild && h.lastElementChild.querySelector('.msg-bubble').textContent === text) {
+    return;
+  }
+  
+  const m = document.createElement('div');
+  m.className = 'msg';
+  m.innerHTML = `
+    <span class="msg-who ${role}">${role === 'user' ? '— MONSIEUR' : '— JARVIS'}</span>
+    <div class="msg-bubble ${role}">${text}</div>
+  `;
+  
+  h.appendChild(m);
+  h.scrollTop = h.scrollHeight; // Auto-scroll vers le bas
+}
+
+// ─── BOUTON DE CONTRÔLE INTERFACE ────────────────────────────────
 function toggleJarvis() {
   const btn = document.getElementById('btnStart');
   jarvisActive = !jarvisActive;
+  
   if (jarvisActive) {
     socket.emit('start');
     btn.textContent = '■ DÉSACTIVER';
@@ -407,6 +460,10 @@ function toggleJarvis() {
     socket.emit('stop');
     btn.textContent = '▶ ACTIVER JARVIS';
     btn.classList.remove('active');
+    
+    // Reset visuel des boîtes lors de l'extinction
+    document.getElementById('transText').innerHTML = '<span class="cursor"></span>';
+    document.getElementById('respText').innerHTML = '<span class="cursor"></span>';
   }
 }
 </script>
