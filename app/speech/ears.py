@@ -12,7 +12,7 @@ MOTS_PARASITES = ["amara", "sous-titres", "merci d'avoir", "abonnez"]
 class Ears:
     def __init__(self):
         print("[JARVIS] Chargement de Whisper...")
-        self.model = WhisperModel("small", device="cpu", compute_type="int8")
+        self.model = WhisperModel("medium", device="cuda", compute_type="float16")
         print("[JARVIS] Whisper opérationnel.")
 
     def ecouter(self):
