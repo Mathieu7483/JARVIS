@@ -7,9 +7,9 @@ import os
 # Ajoute le répertoire JARVIS au path
 sys.path.insert(0, os.path.expanduser('~/JARVIS'))
 
-from ears import Ears
+from app.speech.ears import Ears
 from app.core.processor import Brain
-from mouth import Mouth
+from app.speech.mouth import Mouth
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'jarvis-secret'

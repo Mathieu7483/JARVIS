@@ -1,6 +1,6 @@
 from ollama import Client
 from config import Config
-from actions import executer_action
+from app.actions import executer_action
 from datetime import datetime
 
 try:

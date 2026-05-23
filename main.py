@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from app.core.processor import Brain
-from ears import Ears
-from mouth import Mouth  # Nouvelle importation
+from app.speech.ears import Ears
+from app.speech.mouth import Mouth  # Nouvelle importation
 from config import Config
 
 def main():
