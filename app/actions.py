@@ -17,7 +17,8 @@ WMP_EXE = r"C:\Program Files (x86)\Windows Media Player\wmplayer.exe"
 # ─── CATALOGUE DES APPLICATIONS ──────────────────────────────────
 APPS = {
     "chrome": {
-        "mots": ["chrome", "google", "navigateur", "internet", "web"],
+        # "internet" et "web" retirés — ils déclenchaient Chrome sur les demandes de recherche
+        "mots": ["chrome", "google chrome", "navigateur", "ouvre le navigateur"],
         "lancer": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
         "fermer": "chrome",
     },
@@ -52,7 +53,7 @@ APPS = {
         "fermer": "soffice",
     },
     "explorateur": {
-        "mots": ["explorateur", "explorateur de fichiers", "fichiers", "dossier", "mes documents"],
+        "mots": ["explorateur", "explorateur de fichiers", "dossier", "mes documents"],
         "lancer": "EXPLORER",
         "fermer": "explorer",
     },
@@ -76,6 +77,14 @@ MOTS_LANCER = ["lance", "ouvre", "démarre", "start", "ouvrir", "lancer",
                "démarrer", "allume", "exécute", "active", "mets", "joue"]
 MOTS_FERMER = ["ferme", "quitte", "arrête", "stop", "fermer", "quitter",
                "arrêter", "éteins", "tue", "close", "kill", "stoppe"]
+
+# Phrases qui indiquent une recherche d'information → ne pas intercepter comme commande
+MOTS_RECHERCHE = [
+    "recherche", "cherche", "trouve", "qu'est-ce que", "c'est quoi",
+    "explique", "infos sur", "informations sur", "parle moi de",
+    "dis moi", "qu'est ce que", "kesako", "définition", "comment fonctionne",
+    "renseigne", "documentе", "documente"
+]
 
 NOMS_LISIBLES = {
     "chrome":      "Google Chrome",
@@ -105,7 +114,7 @@ def run_ps1(script):
         )
     except Exception as e:
         print(f"[ACTIONS] Erreur : {e}")
-    return True  # On retourne toujours True — l'app se lance en arrière-plan
+    return True
 
 # ─── ACTIONS ─────────────────────────────────────────────────────
 def lancer_musique(texte):
@@ -121,12 +130,10 @@ def lancer_musique(texte):
     return f"Je lance la playlist {nom_playlist}, Monsieur."
 
 def lancer_app(app_key):
-    # Explorateur de fichiers
     if app_key == "explorateur":
         run_ps1('Start-Process explorer.exe')
         return True
 
-    # Fusion 360 — chemin dynamique (hash change à chaque mise à jour)
     if app_key == "fusion360":
         run_ps1(
             '$basePath = "C:\\Users\\mathi\\AppData\\Local\\Autodesk\\webdeploy\\production"\n'
@@ -136,15 +143,14 @@ def lancer_app(app_key):
         )
         return True
 
-    # Lancement standard
     exe = APPS[app_key]["lancer"]
     run_ps1(f'Start-Process "{exe}"')
     return True
 
 def fermer_app(app_key):
     proc = APPS[app_key]["fermer"]
-    succes = run_ps1(f'Stop-Process -Name "{proc}" -Force -ErrorAction SilentlyContinue')
-    return succes
+    run_ps1(f'Stop-Process -Name "{proc}" -Force -ErrorAction SilentlyContinue')
+    return True
 
 def volume_haut():
     run_ps1('$wsh = New-Object -ComObject WScript.Shell\n1..3 | ForEach-Object { $wsh.SendKeys([char]175) }')
@@ -172,15 +178,24 @@ def veille():
 # ─── DÉTECTION D'INTENTION ───────────────────────────────────────
 def detecter_action(texte):
     t = texte.lower().strip()
+
+    # Si c'est une demande de recherche/information → laisser passer au LLM
+    if any(m in t for m in MOTS_RECHERCHE):
+        return None
+
+    # Commandes spéciales
     for action, phrases in COMMANDES_SPECIALES.items():
         if any(p in t for p in phrases):
             return (action, None)
+
+    # Détection app + intention
     for app_key, app_info in APPS.items():
         if any(mot in t for mot in app_info["mots"]):
             if any(m in t for m in MOTS_FERMER):
                 return ("fermer", app_key)
             else:
                 return ("lancer", app_key)
+
     return None
 
 # ─── EXÉCUTEUR PRINCIPAL ─────────────────────────────────────────
@@ -191,7 +206,6 @@ def executer_action(texte):
 
     action, app_key = resultat
 
-    # Commandes spéciales
     if action == "volume_haut":
         volume_haut(); return "Volume augmenté, Monsieur."
     elif action == "volume_bas":
@@ -206,10 +220,8 @@ def executer_action(texte):
     nom = NOMS_LISIBLES.get(app_key, app_key)
 
     if action == "lancer":
-        # Musique → traitement spécial avec playlist
         if app_key in ("musique", "mediaplayer"):
             return lancer_musique(texte)
-        # Toutes les autres apps → on lance et on confirme sans vérifier le retour
         lancer_app(app_key)
         return f"Je lance {nom}, Monsieur."
 
