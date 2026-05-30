@@ -69,7 +69,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
     <div class="topbar-info">
       <span><div class="live-dot"></div>llama3.1:8b</span>
       <span>RTX 3060 · 12 GB</span>
-      <span>WHISPER small</span>
+      <span>WHISPER medium</span>
     </div>
   </header>
   <main class="center">
@@ -120,8 +120,13 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 100);
 camera.position.set(0, 0, 3.2);
 
+const pivot = new THREE.Group();
+pivot.rotation.x = 0;
+pivot.rotation.z = 0;
+scene.add(pivot);
+
 const group = new THREE.Group();
-scene.add(group);
+pivot.add(group);
 
 let synapseNodes = [];
 let synapsePulses = [];
@@ -130,7 +135,6 @@ let greenParticleSystem = null;
 let currentState = 'idle';
 let jarvisActive = false;
 
-// Couleurs des pulses selon état
 const PULSE_COLORS_IDLE     = [0x00d4ff, 0x0088cc, 0x00aaff, 0x0066bb];
 const PULSE_COLORS_THINKING = [0xff8800, 0xffaa00, 0xff6600];
 const PULSE_COLORS_SPEAKING = [0x00ffcc, 0x00ffaa, 0x22ffdd];
@@ -140,38 +144,34 @@ fetch('/static/brain_points.json')
   .then(r => r.json())
   .then(points => {
     console.log('[JARVIS] ' + points.length + ' points chargés');
-    
-    // CORRECTION DES AXES : 
-    // On remplace Y par Z, et on inverse le Y d'origine pour le remettre à l'endroit
-    synapseNodes = points.map(p => new THREE.Vector3(p[0], p[2], -p[1]));
-    
-    // Optionnel : Ajustement de la position globale si le cerveau est trop bas/haut
-    group.position.y = 0.2; 
-    
+    synapseNodes = points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
     buildSynapses(PULSE_COLORS_IDLE);
   })
   .catch(err => {
-    console.error('[JARVIS] Erreur chargement points:', err);
+    console.error('[JARVIS] Erreur:', err);
     buildFallback();
   });
 
 function buildSynapses(pulseColors) {
-  // Nettoyer l'ancien réseau
   while(group.children.length > 0) group.remove(group.children[0]);
   synapsePulses = [];
   synapseLines = null;
+  greenParticleSystem = null;
 
   const connections = [];
   const lineVerts = [];
 
-  // Distance adaptée à la densité des points
-  const distMax = 0.28;
+  // Sous-échantillonnage : on calcule les connexions sur 1 point sur 2
+  // pour éviter O(n²) avec 5000 points — puis on utilise tous les points pour les pulses
+  const STEP = 2;
+  const distMax = 0.18;
+  const probConn = 0.45;
 
-  for (let i = 0; i < synapseNodes.length; i++) {
-    for (let j = i+1; j < synapseNodes.length; j++) {
+  for (let i = 0; i < synapseNodes.length; i += STEP) {
+    for (let j = i + STEP; j < synapseNodes.length; j += STEP) {
       const d = synapseNodes[i].distanceTo(synapseNodes[j]);
-      if (d < distMax && Math.random() < 0.4) {
-        connections.push({a:i, b:j});
+      if (d < distMax && Math.random() < probConn) {
+        connections.push({a: i, b: j});
         lineVerts.push(
           synapseNodes[i].x, synapseNodes[i].y, synapseNodes[i].z,
           synapseNodes[j].x, synapseNodes[j].y, synapseNodes[j].z
@@ -182,75 +182,73 @@ function buildSynapses(pulseColors) {
 
   console.log('[JARVIS] ' + connections.length + ' connexions synaptiques');
 
-  // Lignes statiques du réseau
+  // Lignes du réseau — bleu très discret
   if (lineVerts.length > 0) {
     const lg = new THREE.BufferGeometry();
     lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lineVerts), 3));
     synapseLines = new THREE.LineSegments(lg,
-      new THREE.LineBasicMaterial({ color: 0x003a5a, transparent: true, opacity: 0.15 }));
+      new THREE.LineBasicMaterial({ color: 0x004466, transparent: true, opacity: 0.18 }));
     group.add(synapseLines);
   }
 
-  // Neurones (petits points lumineux)
+  // Nuage de points — tous les 5000 points, petits et discrets
   const ng = new THREE.BufferGeometry();
   const np = new Float32Array(synapseNodes.length * 3);
   synapseNodes.forEach((n,i) => { np[i*3]=n.x; np[i*3+1]=n.y; np[i*3+2]=n.z; });
   ng.setAttribute('position', new THREE.BufferAttribute(np, 3));
+
   group.add(new THREE.Points(ng,
-    new THREE.PointsMaterial({ color: 0x0088bb, size: 0.008, transparent: true, opacity: 0.5 })));
-  // Couche de points verts plus brillants pour les synapses actives
+    new THREE.PointsMaterial({ color: 0x003a55, size: 0.003, transparent: true, opacity: 0.35 })));
+
+  // Couche de particules cyan/vertes réactives à l'état
   const greenMat = new THREE.PointsMaterial({
-    color: 0x00ffcc,       // Vert/Cyan technologique brillant
-    size: 0.015,           // Plus grosses que les bleues pour être visibles
+    color: 0x00ffcc,
+    size: 0.006,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.15,
     blending: THREE.AdditiveBlending
   });
   greenParticleSystem = new THREE.Points(ng.clone(), greenMat);
   group.add(greenParticleSystem);
 
   // Pulses lumineux avec traînées
-  const pGeo = new THREE.SphereGeometry(0.012, 5, 5);
-  const pulseCount = Math.min(50, connections.length);
+  const pGeo = new THREE.SphereGeometry(0.006, 5, 5);
+  const pulseCount = Math.min(120, connections.length);
 
   for (let k = 0; k < pulseCount; k++) {
     const col = pulseColors[k % pulseColors.length];
-
-    // Sphère pulse
     const mesh = new THREE.Mesh(pGeo,
       new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 }));
     group.add(mesh);
 
-    // Traînée lumineuse
     const tGeo = new THREE.BufferGeometry();
     tGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
     const trail = new THREE.Line(tGeo,
-      new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.6, linewidth: 2 }));
+      new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55 }));
     group.add(trail);
 
     synapsePulses.push({
       mesh, trail, tGeo, connections,
       ci: Math.floor(Math.random() * connections.length),
       t: Math.random(),
-      speed: 0.006 + Math.random() * 0.01,
+      speed: 0.005 + Math.random() * 0.009,
       dir: Math.random() > 0.5 ? 1 : -1
     });
   }
 }
 
 function buildFallback() {
-  // Cerveau procédural si JSON manquant
   const pts = [];
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < 500; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
     const side = Math.random() > 0.5 ? 0.25 : -0.25;
     const r = 0.55 + Math.random() * 0.3;
-    const nx = 0.08 * Math.sin(theta * 5) * Math.cos(phi * 4);
+    const nx = 0.08 * Math.sin(theta*5) * Math.cos(phi*4);
     pts.push(new THREE.Vector3(
-      r * Math.sin(phi) * Math.cos(theta) * 1.15 + side + nx,
-      r * Math.sin(phi) * Math.sin(theta) * 0.82 + nx * 0.5,
-      r * Math.cos(phi) * 0.88
+      r*Math.sin(phi)*Math.cos(theta)*1.15+side+nx,
+      r*Math.sin(phi)*Math.sin(theta)*0.82+nx*0.5,
+      r*Math.cos(phi)*0.88
     ));
   }
   synapseNodes = pts;
@@ -263,78 +261,61 @@ function animate() {
   requestAnimationFrame(animate);
   t += 0.007;
 
-  // Rotation lente et naturelle
-  group.rotation.y = t * 0.12;
-  group.rotation.x = Math.sin(t * 0.07) * 0.05;
+  group.rotation.y = -t * 0.25;
 
-  // Pulsation réseau selon état
+
+  // Pulsation des lignes de connexion selon état
   if (synapseLines) {
-    const baseOpacity = currentState === 'thinking' ? 0.25 : currentState === 'speaking' ? 0.3 : 0.12;
-    const pulseSpeed  = currentState === 'thinking' ? 4 : currentState === 'speaking' ? 6 : 1;
-    synapseLines.material.opacity = baseOpacity + 0.08 * Math.sin(t * pulseSpeed);
+    const base = currentState==='thinking' ? 0.28 : currentState==='speaking' ? 0.32 : 0.15;
+    const spd  = currentState==='thinking' ? 5    : currentState==='speaking' ? 7    : 1;
+    synapseLines.material.opacity = base + 0.08 * Math.sin(t * spd);
   }
 
-    // ─── ANIMATION DES PARTICULES VERTES SELON L'ÉTAT D'OLLAMA ───
-if (greenParticleSystem) {
-  if (currentState === 'thinking') {
-    // Mode Réflexion : Pulsation rapide de la taille et de l'intensité
-    const pulseThinking = Math.sin(t * 15); // Fréquence rapide
-    greenParticleSystem.material.size = 0.015 + 0.010 * pulseThinking;
-    greenParticleSystem.material.opacity = 0.5 + 0.5 * Math.sin(t * 20);
-    
-    // Légère distorsion rotationnelle chaotique pendant la réflexion
-    greenParticleSystem.rotation.z = Math.sin(t * 5) * 0.05;
-  } else if (currentState === 'speaking') {
-    // Mode Parole : Intensité stable, taille moyenne
-    greenParticleSystem.material.size = 0.012;
-    greenParticleSystem.material.opacity = 0.4 + 0.2 * Math.sin(t * 5);
-    greenParticleSystem.rotation.z = 0;
-  } else {
-    // Mode Veille / Écoute : Très discret, presque invisible
-    greenParticleSystem.material.size = 0.006;
-    greenParticleSystem.material.opacity = 0.15 + 0.05 * Math.sin(t * 2);
-    greenParticleSystem.rotation.z = 0;
+  // Particules vertes réactives à l'état
+  if (greenParticleSystem) {
+    if (currentState === 'thinking') {
+      greenParticleSystem.material.size    = 0.012 + 0.008 * Math.sin(t * 15);
+      greenParticleSystem.material.opacity = 0.5   + 0.5  * Math.sin(t * 20);
+      greenParticleSystem.material.needsUpdate = true;
+    } else if (currentState === 'speaking') {
+      greenParticleSystem.material.size    = 0.010;
+      greenParticleSystem.material.opacity = 0.35  + 0.2  * Math.sin(t * 5);
+      greenParticleSystem.material.needsUpdate = true;
+    } else {
+      greenParticleSystem.material.size    = 0.006;
+      greenParticleSystem.material.opacity = 0.12  + 0.04 * Math.sin(t * 2);
+      greenParticleSystem.material.needsUpdate = true;
+    }
   }
-}
-  // Mise à jour pulses
-  synapsePulses.forEach((p, k) => {
+
+  // Mise à jour des pulses
+  for (let k = 0; k < synapsePulses.length; k++) {
+    const p = synapsePulses[k];
     p.t += p.speed * p.dir;
     if (p.t > 1 || p.t < 0) {
       p.dir *= -1;
       p.ci = Math.floor(Math.random() * p.connections.length);
-      // Petite pause aléatoire
-      if (Math.random() < 0.15) p.speed = 0.003 + Math.random() * 0.008;
+      if (Math.random() < 0.12) p.speed = 0.003 + Math.random() * 0.009;
     }
     p.t = Math.max(0, Math.min(1, p.t));
 
     const c = p.connections[p.ci];
-    if (!c) return;
+    if (!c) continue;
     const na = synapseNodes[c.a], nb = synapseNodes[c.b];
-    if (!na || !nb) return;
+    if (!na || !nb) continue;
 
-    // Position du pulse
-    const px = na.x + (nb.x-na.x)*p.t;
-    const py = na.y + (nb.y-na.y)*p.t;
-    const pz = na.z + (nb.z-na.z)*p.t;
+    const px = na.x+(nb.x-na.x)*p.t, py = na.y+(nb.y-na.y)*p.t, pz = na.z+(nb.z-na.z)*p.t;
     p.mesh.position.set(px, py, pz);
+    p.mesh.scale.setScalar(0.7 + 0.4*Math.sin(t*5+k*0.8));
+    p.mesh.material.opacity = 0.8 + 0.2*Math.sin(t*6+k);
 
-    // Pulsation taille
-    const sc = 0.7 + 0.5 * Math.sin(t * 5 + k * 0.7);
-    p.mesh.scale.setScalar(sc);
-    p.mesh.material.opacity = 0.75 + 0.25 * Math.sin(t * 6 + k);
-
-    // Traînée
-    const trailLen = 0.18;
-    const trailT = Math.max(0, Math.min(1, p.t - trailLen * p.dir));
-    const tx = na.x + (nb.x-na.x)*trailT;
-    const ty = na.y + (nb.y-na.y)*trailT;
-    const tz = na.z + (nb.z-na.z)*trailT;
+    const trailT = Math.max(0, Math.min(1, p.t - 0.18*p.dir));
+    const tx = na.x+(nb.x-na.x)*trailT, ty = na.y+(nb.y-na.y)*trailT, tz = na.z+(nb.z-na.z)*trailT;
     const arr = p.tGeo.attributes.position.array;
-    arr[0]=tx; arr[1]=ty; arr[2]=tz;
-    arr[3]=px; arr[4]=py; arr[5]=pz;
+    arr[0]=tx;arr[1]=ty;arr[2]=tz;arr[3]=px;arr[4]=py;arr[5]=pz;
     p.tGeo.attributes.position.needsUpdate = true;
-    p.trail.material.opacity = 0.4 + 0.3 * Math.sin(t * 6 + k);
-  });
+    p.trail.material.opacity = 0.4 + 0.3*Math.sin(t*6+k);
+  }
 
   renderer.render(scene, camera);
 }
@@ -351,107 +332,63 @@ setInterval(() => {
 
 // ─── SOCKET.IO ───────────────────────────────────────────────────
 const socket = io();
+socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
 
-socket.on('connect', () => console.log('[JARVIS] Socket connecté au serveur Flask'));
-
-// Gestionnaire des états de la boucle principale
 socket.on('status', (data) => {
   currentState = data.state;
   const badge = document.getElementById('statusBadge');
-  const text  = document.getElementById('statusText');
-  
   badge.className = 'status-ring ' + data.state;
-  
-  const labels = { 
-    listening: 'EN ÉCOUTE', 
-    thinking: 'RÉFLEXION...', 
-    speaking: 'EN COURS...', 
-    idle: 'EN VEILLE' 
-  };
-  text.textContent = labels[data.state] || data.state.toUpperCase();
-
-  // Ajustement de la couleur des synapses de Three.js en fonction du mode de Jarvis
-  const cols = data.state === 'thinking' ? PULSE_COLORS_THINKING
-             : data.state === 'speaking' ? PULSE_COLORS_SPEAKING
+  const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE' };
+  document.getElementById('statusText').textContent = labels[data.state] || data.state.toUpperCase();
+  const cols = data.state==='thinking' ? PULSE_COLORS_THINKING
+             : data.state==='speaking' ? PULSE_COLORS_SPEAKING
              : PULSE_COLORS_IDLE;
-             
   synapsePulses.forEach((p, k) => {
-    p.mesh.material.color.setHex(cols[k % cols.length]);
-    p.trail.material.color.setHex(cols[k % cols.length]);
+    p.mesh.material.color.setHex(cols[k%cols.length]);
+    p.trail.material.color.setHex(cols[k%cols.length]);
   });
 });
 
-// Réception de la transcription de ta voix (Whisper)
 socket.on('transcription', (data) => {
-  const transText = document.getElementById('transText');
-  transText.textContent = data.text;
-  
-  const transBox = document.getElementById('transBox');
-  transBox.classList.add('active');
-  
-  // On ajoute le bloc à l'historique latéral
+  document.getElementById('transText').textContent = data.text;
+  document.getElementById('transBox').classList.add('active');
   addMessage('user', data.text);
 });
 
-// Réception de la réponse textuelle générée par Ollama
 socket.on('response', (data) => {
   const respBox = document.getElementById('respBox');
   const respText = document.getElementById('respText');
-  
   respBox.classList.add('active');
-  
-  // Effet d'écriture progressive pour simuler une IA vivante au centre de l'écran
   typeWriter(respText, data.text, 0, () => {
-    // Une fois l'animation d'écriture finie, on l'ajoute proprement à l'historique de droite
     addMessage('jarvis', data.text);
-    
-    // Extinction de la surbrillance de la boîte après 3 secondes
     setTimeout(() => respBox.classList.remove('active'), 3000);
   });
 });
 
-// ─── FONCTIONS UTILITAIRES ANIMATION ─────────────────────────────
-
-// Effet Teletype / Machine à écrire
-function typeWriter(element, text, index, callback) {
-  if (index < text.length) {
-    // On injecte le texte caractère par caractère avant le curseur clignotant
-    element.innerHTML = text.substring(0, index + 1) + '<span class="cursor"></span>';
-    
-    // Vitesse réglable : 25ms par caractère offre un excellent compromis réactivité/esthétique
-    setTimeout(() => {
-      typeWriter(element, text, index + 1, callback);
-    }, 25);
-  } else if (callback) {
-    callback();
-  }
+function typeWriter(el, text, i, cb) {
+  if (i < text.length) {
+    el.innerHTML = text.substring(0, i+1) + '<span class="cursor"></span>';
+    setTimeout(() => typeWriter(el, text, i+1, cb), 22);
+  } else if (cb) cb();
 }
 
-// Ajout d'une ligne propre dans le panneau historique
 function addMessage(role, text) {
   const h = document.getElementById('history');
-  
-  // Évite de dupliquer si le dernier message inséré est identique (sécurité WebSocket)
-  if (h.lastElementChild && h.lastElementChild.querySelector('.msg-bubble').textContent === text) {
-    return;
+  if (h.lastElementChild) {
+    const last = h.lastElementChild.querySelector('.msg-bubble');
+    if (last && last.textContent === text) return;
   }
-  
   const m = document.createElement('div');
   m.className = 'msg';
-  m.innerHTML = `
-    <span class="msg-who ${role}">${role === 'user' ? '— MONSIEUR' : '— JARVIS'}</span>
-    <div class="msg-bubble ${role}">${text}</div>
-  `;
-  
+  m.innerHTML = '<span class="msg-who '+role+'">'+(role==='user'?'— MONSIEUR':'— JARVIS')+'</span><div class="msg-bubble '+role+'">'+text+'</div>';
   h.appendChild(m);
-  h.scrollTop = h.scrollHeight; // Auto-scroll vers le bas
+  h.scrollTop = h.scrollHeight;
 }
 
-// ─── BOUTON DE CONTRÔLE INTERFACE ────────────────────────────────
+// ─── BOUTON ──────────────────────────────────────────────────────
 function toggleJarvis() {
   const btn = document.getElementById('btnStart');
   jarvisActive = !jarvisActive;
-  
   if (jarvisActive) {
     socket.emit('start');
     btn.textContent = '■ DÉSACTIVER';
@@ -460,8 +397,6 @@ function toggleJarvis() {
     socket.emit('stop');
     btn.textContent = '▶ ACTIVER JARVIS';
     btn.classList.remove('active');
-    
-    // Reset visuel des boîtes lors de l'extinction
     document.getElementById('transText').innerHTML = '<span class="cursor"></span>';
     document.getElementById('respText').innerHTML = '<span class="cursor"></span>';
   }
