@@ -1,10 +1,33 @@
 {
     "faits_utilisateur": [
         "L'utilisateur s'appelle Monsieur Mathieu.",
-        "Monsieur étudie le Machine Learning et la programmation."
+        "Monsieur a 42 ans.",
+        "Monsieur est né le 14 Octobre 1983.",
+        "Monsieur vit à Thonon les Bains, en haute savoie, en France.",
+        "Monsieur est passionné de Motocyclisme, de photographie, de cinéma et d'IA.",
+        "Monsieur est un développeur autodidacte spécialisé en Machine Learning et en développement d'IA.",
+        "Monsieur a été dans la Gendarmerie pendant 5années et en securité privée en Suisse pendant 15ans.",
+        "Monsieur aime la musique rock, pop rock, country, folk, blues, jazz et la musique classique.",
+        "Monsieur a pratiqué le Rugby pendant 11ans, le Karaté pendant 2ans, l'athletisme 2ans et le volleyball pendant 2ans.",
+        "Monsieur à un github personnel nommé Mathieu7483.",
+        "Monsieur est étudiant à la Holberton School, une école de développement informatique.",
+        "Monsieur est papa.",
+        "Monsieur aime les animaux, en particulier les chiens.",
+        "Monsieur aime les voyages, en particulier en Europe , les pays scandinaves.",
+        "Monsieur aime les films de science fiction, d'action et d'aventure, policier, thrillers, guerre.",
+        "Monsieur aime lire des livres de developpement personnel, policiers, techno thrillers, science fiction.",
+        "Monsieur aime les jeux vidéo, en particulier Counter strike, et tomb raider.",
+        "Monsieur travaille sur un projet d'IA personnelle nommé JARVIS.",
+        "Monsieur étudie le Machine Learning et la programmation.",
+        "Monsieur utilise Windows avec WSL, une RTX 3060 12Go.",
+        "Monsieur préfère les réponses concises et formelles."
     ],
     "connaissances_acquises": [
         "Recherche sur English language preference effectuée le 24/05.",
-        "Recherche sur réseaux de neurones convolutionnels effectuée le 30/05."
+        "Recherche sur réseaux de neurones convolutionnels effectuée le 30/05.",
+        "Recherche sur recherche sur internet effectuée le 30/05.",
+        "Recherche sur programme du cinéma de... effectuée le 30/05.",
+        "Recherche sur réseaux de neurones effectuée le 31/05.",
+        "Recherche sur Pooling en Machine Learning effectuée le 31/05."
     ]
 }
