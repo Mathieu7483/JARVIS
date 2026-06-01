@@ -100,6 +100,21 @@ def handle_stop():
             jarvis_running = False
             print("[JARVIS] Signal d'arrêt reçu. Arrêt au prochain cycle disponible...")
 
+@socketio.on('text_input')
+def handle_text_input(data):
+    texte = data.get('text', '').strip()
+    if not texte:
+        return
+    socketio.emit('transcription', {'text': texte})
+    socketio.emit('status', {'state': 'thinking'})
+    reponse = brain.reflechir(texte)
+    if reponse:
+        socketio.emit('response', {'text': reponse})
+        socketio.emit('status', {'state': 'speaking'})
+        mouth.parler(reponse)
+    socketio.emit('status', {'state': 'idle'})
+
+    
 if __name__ == '__main__':
     print("[JARVIS] Interface web disponible sur http://localhost:5000")
     # debug=False est impératif ici car le reloader de Flask instancierait tes modèles d'IA deux fois !
