@@ -26,9 +26,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 .status-ring{position:relative;z-index:1;display:flex;align-items:center;gap:10px;padding:6px 18px;border:1px solid var(--c-dim);border-radius:20px;font-size:10px;letter-spacing:3px;color:var(--c-cyan);background:rgba(0,20,40,0.8);transition:all 0.4s}
 .status-ring.thinking{border-color:#ff8800;color:#ff8800}
 .status-ring.speaking{border-color:var(--c-cyan2);color:var(--c-cyan2)}
+.status-ring.keyboard{border-color:#aa44ff;color:#aa44ff}
 .status-indicator{width:7px;height:7px;border-radius:50%;background:var(--c-cyan);animation:blink 1.4s infinite;transition:background 0.4s}
 .status-ring.thinking .status-indicator{background:#ff8800;animation-duration:0.5s}
 .status-ring.speaking .status-indicator{background:var(--c-cyan2);animation-duration:0.3s}
+.status-ring.keyboard .status-indicator{background:#aa44ff;animation-duration:1s}
 .visualizer{position:relative;z-index:1;display:flex;align-items:flex-end;gap:3px;height:40px;width:180px}
 .vbar{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(to top,var(--c-blue),var(--c-cyan));animation:vwave ease-in-out infinite alternate;opacity:0.7}
 .vbar:nth-child(1){animation-duration:.5s}.vbar:nth-child(2){animation-duration:.7s}.vbar:nth-child(3){animation-duration:.4s}
@@ -54,12 +56,50 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 .msg-bubble{font-size:11px;line-height:1.6;padding:8px 10px;border-radius:2px;border-left:2px solid}
 .msg-bubble.user{border-color:var(--c-blue);background:rgba(0,60,100,0.15);color:var(--c-text)}
 .msg-bubble.jarvis{border-color:#00aa66;background:rgba(0,100,60,0.1);color:#4ae0a0}
-.bottombar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-top:1px solid var(--c-border);background:var(--c-panel)}
-.btn-start{font-family:var(--font-title);font-size:10px;letter-spacing:3px;padding:8px 24px;border-radius:2px;border:1px solid var(--c-cyan);background:transparent;color:var(--c-cyan);cursor:pointer;transition:all 0.3s}
+
+/* ─── BARRE DU BAS ─────────────────────────────────────── */
+.bottombar{
+  grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;gap:12px;
+  border-top:1px solid var(--c-border);background:var(--c-panel);
+}
+.sys-stats{display:flex;gap:20px;font-size:9px;color:var(--c-text2);letter-spacing:1px;flex-shrink:0}
+
+/* Mode micro */
+.mic-controls{display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end}
+.btn-start{font-family:var(--font-title);font-size:10px;letter-spacing:3px;padding:8px 20px;border-radius:2px;border:1px solid var(--c-cyan);background:transparent;color:var(--c-cyan);cursor:pointer;transition:all 0.3s}
 .btn-start:hover{background:var(--c-cyan);color:var(--c-bg)}
 .btn-start.active{border-color:#ff4444;color:#ff4444}
 .btn-start.active:hover{background:#ff4444;color:var(--c-bg)}
-.sys-stats{display:flex;gap:20px;font-size:9px;color:var(--c-text2);letter-spacing:1px}
+
+/* Mode clavier */
+.keyboard-controls{display:none;align-items:center;gap:8px;flex:1}
+.keyboard-input{
+  flex:1;background:rgba(0,20,40,0.8);border:1px solid var(--c-dim);
+  border-radius:2px;padding:8px 14px;
+  color:var(--c-cyan);font-family:var(--font-main);font-size:13px;
+  outline:none;transition:border-color 0.3s;
+}
+.keyboard-input:focus{border-color:var(--c-cyan)}
+.keyboard-input::placeholder{color:var(--c-text2)}
+.btn-send{
+  font-family:var(--font-title);font-size:10px;letter-spacing:2px;
+  padding:8px 16px;border-radius:2px;
+  border:1px solid var(--c-cyan2);background:transparent;color:var(--c-cyan2);
+  cursor:pointer;transition:all 0.3s;flex-shrink:0;
+}
+.btn-send:hover{background:var(--c-cyan2);color:var(--c-bg)}
+.btn-send:disabled{opacity:0.4;cursor:not-allowed}
+
+/* Bouton bascule mode */
+.btn-mode{
+  font-size:16px;padding:6px 10px;border-radius:2px;
+  border:1px solid var(--c-dim);background:transparent;
+  cursor:pointer;transition:all 0.3s;flex-shrink:0;
+  color:var(--c-text2);
+}
+.btn-mode:hover{border-color:var(--c-cyan);color:var(--c-cyan)}
+.btn-mode.keyboard-mode{border-color:#aa44ff;color:#aa44ff}
 </style>
 </head>
 <body>
@@ -72,11 +112,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
       <span>WHISPER medium</span>
     </div>
   </header>
+
   <main class="center">
     <div id="brainContainer"></div>
     <div class="status-ring" id="statusBadge">
       <div class="status-indicator"></div>
-      <span id="statusText">EN ÉCOUTE</span>
+      <span id="statusText">EN VEILLE</span>
     </div>
     <div class="visualizer">
       <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
@@ -92,23 +133,40 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
       <div class="tbox-text response" id="respText"><span class="cursor"></span></div>
     </div>
   </main>
+
   <aside class="right-panel">
     <div class="panel-header">HISTORIQUE DE CONVERSATION</div>
     <div class="history" id="history"></div>
   </aside>
+
   <footer class="bottombar">
     <div class="sys-stats">
       <span id="stat-time">--:--</span>
       <span>LOCAL INFERENCE</span>
-      <span>ANTHROPIC</span>
     </div>
-    <button class="btn-start" id="btnStart" onclick="toggleJarvis()">▶ ACTIVER JARVIS</button>
+
+    <!-- Mode micro -->
+    <div class="mic-controls" id="micControls">
+      <button class="btn-start" id="btnStart" onclick="toggleJarvis()">▶ ACTIVER JARVIS</button>
+    </div>
+
+    <!-- Mode clavier -->
+    <div class="keyboard-controls" id="keyboardControls">
+      <input class="keyboard-input" id="keyboardInput" type="text"
+             placeholder="Tapez votre message à JARVIS..."
+             onkeydown="handleKeyDown(event)">
+      <button class="btn-send" id="btnSend" onclick="sendTextInput()">ENVOYER</button>
+    </div>
+
+    <!-- Bouton bascule -->
+    <button class="btn-mode" id="btnMode" onclick="toggleMode()" title="Basculer micro / clavier">🎤</button>
   </footer>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
+// ─── THREE.JS ────────────────────────────────────────────────────
 const W = 800, H = 600;
 const container = document.getElementById('brainContainer');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -134,23 +192,20 @@ let synapseLines = null;
 let greenParticleSystem = null;
 let currentState = 'idle';
 let jarvisActive = false;
+let keyboardMode = false;
 
 const PULSE_COLORS_IDLE     = [0x00d4ff, 0x0088cc, 0x00aaff, 0x0066bb];
 const PULSE_COLORS_THINKING = [0xff8800, 0xffaa00, 0xff6600];
 const PULSE_COLORS_SPEAKING = [0x00ffcc, 0x00ffaa, 0x22ffdd];
+const PULSE_COLORS_KEYBOARD = [0xaa44ff, 0x8822dd, 0xcc66ff];
 
-// ─── CHARGEMENT DES POINTS ───────────────────────────────────────
 fetch('/static/brain_points.json')
   .then(r => r.json())
   .then(points => {
-    console.log('[JARVIS] ' + points.length + ' points chargés');
     synapseNodes = points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
     buildSynapses(PULSE_COLORS_IDLE);
   })
-  .catch(err => {
-    console.error('[JARVIS] Erreur:', err);
-    buildFallback();
-  });
+  .catch(() => buildFallback());
 
 function buildSynapses(pulseColors) {
   while(group.children.length > 0) group.remove(group.children[0]);
@@ -158,31 +213,20 @@ function buildSynapses(pulseColors) {
   synapseLines = null;
   greenParticleSystem = null;
 
-  const connections = [];
-  const lineVerts = [];
-
-  // Sous-échantillonnage : on calcule les connexions sur 1 point sur 2
-  // pour éviter O(n²) avec 5000 points — puis on utilise tous les points pour les pulses
-  const STEP = 2;
-  const distMax = 0.18;
-  const probConn = 0.45;
+  const connections = [], lineVerts = [];
+  const STEP = 2, distMax = 0.18, probConn = 0.45;
 
   for (let i = 0; i < synapseNodes.length; i += STEP) {
-    for (let j = i + STEP; j < synapseNodes.length; j += STEP) {
+    for (let j = i+STEP; j < synapseNodes.length; j += STEP) {
       const d = synapseNodes[i].distanceTo(synapseNodes[j]);
       if (d < distMax && Math.random() < probConn) {
-        connections.push({a: i, b: j});
-        lineVerts.push(
-          synapseNodes[i].x, synapseNodes[i].y, synapseNodes[i].z,
-          synapseNodes[j].x, synapseNodes[j].y, synapseNodes[j].z
-        );
+        connections.push({a:i, b:j});
+        lineVerts.push(synapseNodes[i].x, synapseNodes[i].y, synapseNodes[i].z,
+                       synapseNodes[j].x, synapseNodes[j].y, synapseNodes[j].z);
       }
     }
   }
 
-  console.log('[JARVIS] ' + connections.length + ' connexions synaptiques');
-
-  // Lignes du réseau — bleu très discret
   if (lineVerts.length > 0) {
     const lg = new THREE.BufferGeometry();
     lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lineVerts), 3));
@@ -191,104 +235,78 @@ function buildSynapses(pulseColors) {
     group.add(synapseLines);
   }
 
-  // Nuage de points — tous les 5000 points, petits et discrets
   const ng = new THREE.BufferGeometry();
   const np = new Float32Array(synapseNodes.length * 3);
   synapseNodes.forEach((n,i) => { np[i*3]=n.x; np[i*3+1]=n.y; np[i*3+2]=n.z; });
   ng.setAttribute('position', new THREE.BufferAttribute(np, 3));
-
   group.add(new THREE.Points(ng,
     new THREE.PointsMaterial({ color: 0x003a55, size: 0.003, transparent: true, opacity: 0.35 })));
 
-  // Couche de particules cyan/vertes réactives à l'état
   const greenMat = new THREE.PointsMaterial({
-    color: 0x00ffcc,
-    size: 0.006,
-    transparent: true,
-    opacity: 0.15,
+    color: 0x00ffcc, size: 0.006, transparent: true, opacity: 0.15,
     blending: THREE.AdditiveBlending
   });
   greenParticleSystem = new THREE.Points(ng.clone(), greenMat);
   group.add(greenParticleSystem);
 
-  // Pulses lumineux avec traînées
   const pGeo = new THREE.SphereGeometry(0.006, 5, 5);
   const pulseCount = Math.min(120, connections.length);
-
   for (let k = 0; k < pulseCount; k++) {
     const col = pulseColors[k % pulseColors.length];
-    const mesh = new THREE.Mesh(pGeo,
-      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 }));
+    const mesh = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 }));
     group.add(mesh);
-
     const tGeo = new THREE.BufferGeometry();
     tGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-    const trail = new THREE.Line(tGeo,
-      new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55 }));
+    const trail = new THREE.Line(tGeo, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55 }));
     group.add(trail);
-
-    synapsePulses.push({
-      mesh, trail, tGeo, connections,
+    synapsePulses.push({ mesh, trail, tGeo, connections,
       ci: Math.floor(Math.random() * connections.length),
-      t: Math.random(),
-      speed: 0.005 + Math.random() * 0.009,
-      dir: Math.random() > 0.5 ? 1 : -1
-    });
+      t: Math.random(), speed: 0.005 + Math.random() * 0.009,
+      dir: Math.random() > 0.5 ? 1 : -1 });
   }
 }
 
 function buildFallback() {
   const pts = [];
   for (let i = 0; i < 500; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const side = Math.random() > 0.5 ? 0.25 : -0.25;
-    const r = 0.55 + Math.random() * 0.3;
-    const nx = 0.08 * Math.sin(theta*5) * Math.cos(phi*4);
-    pts.push(new THREE.Vector3(
-      r*Math.sin(phi)*Math.cos(theta)*1.15+side+nx,
-      r*Math.sin(phi)*Math.sin(theta)*0.82+nx*0.5,
-      r*Math.cos(phi)*0.88
-    ));
+    const theta = Math.random()*Math.PI*2, phi = Math.acos(2*Math.random()-1);
+    const side = Math.random() > 0.5 ? 0.25 : -0.25, r = 0.55+Math.random()*0.3;
+    const nx = 0.08*Math.sin(theta*5)*Math.cos(phi*4);
+    pts.push(new THREE.Vector3(r*Math.sin(phi)*Math.cos(theta)*1.15+side+nx,
+      r*Math.sin(phi)*Math.sin(theta)*0.82+nx*0.5, r*Math.cos(phi)*0.88));
   }
   synapseNodes = pts;
   buildSynapses(PULSE_COLORS_IDLE);
 }
 
-// ─── ANIMATION ───────────────────────────────────────────────────
 let t = 0;
 function animate() {
   requestAnimationFrame(animate);
   t += 0.007;
+  group.rotation.y = t * 0.25;
 
-  group.rotation.y = -t * 0.25;
-
-
-  // Pulsation des lignes de connexion selon état
   if (synapseLines) {
     const base = currentState==='thinking' ? 0.28 : currentState==='speaking' ? 0.32 : 0.15;
     const spd  = currentState==='thinking' ? 5    : currentState==='speaking' ? 7    : 1;
     synapseLines.material.opacity = base + 0.08 * Math.sin(t * spd);
   }
 
-  // Particules vertes réactives à l'état
   if (greenParticleSystem) {
     if (currentState === 'thinking') {
-      greenParticleSystem.material.size    = 0.012 + 0.008 * Math.sin(t * 15);
-      greenParticleSystem.material.opacity = 0.5   + 0.5  * Math.sin(t * 20);
+      greenParticleSystem.material.size    = 0.012 + 0.008*Math.sin(t*15);
+      greenParticleSystem.material.opacity = 0.5   + 0.5  *Math.sin(t*20);
       greenParticleSystem.material.needsUpdate = true;
     } else if (currentState === 'speaking') {
       greenParticleSystem.material.size    = 0.010;
-      greenParticleSystem.material.opacity = 0.35  + 0.2  * Math.sin(t * 5);
+      greenParticleSystem.material.opacity = 0.35  + 0.2  *Math.sin(t*5);
       greenParticleSystem.material.needsUpdate = true;
     } else {
       greenParticleSystem.material.size    = 0.006;
-      greenParticleSystem.material.opacity = 0.12  + 0.04 * Math.sin(t * 2);
+      greenParticleSystem.material.opacity = 0.12  + 0.04 *Math.sin(t*2);
       greenParticleSystem.material.needsUpdate = true;
     }
   }
 
-  // Mise à jour des pulses
   for (let k = 0; k < synapsePulses.length; k++) {
     const p = synapsePulses[k];
     p.t += p.speed * p.dir;
@@ -298,25 +316,21 @@ function animate() {
       if (Math.random() < 0.12) p.speed = 0.003 + Math.random() * 0.009;
     }
     p.t = Math.max(0, Math.min(1, p.t));
-
     const c = p.connections[p.ci];
     if (!c) continue;
     const na = synapseNodes[c.a], nb = synapseNodes[c.b];
     if (!na || !nb) continue;
-
     const px = na.x+(nb.x-na.x)*p.t, py = na.y+(nb.y-na.y)*p.t, pz = na.z+(nb.z-na.z)*p.t;
     p.mesh.position.set(px, py, pz);
-    p.mesh.scale.setScalar(0.7 + 0.4*Math.sin(t*5+k*0.8));
-    p.mesh.material.opacity = 0.8 + 0.2*Math.sin(t*6+k);
-
-    const trailT = Math.max(0, Math.min(1, p.t - 0.18*p.dir));
+    p.mesh.scale.setScalar(0.7+0.4*Math.sin(t*5+k*0.8));
+    p.mesh.material.opacity = 0.8+0.2*Math.sin(t*6+k);
+    const trailT = Math.max(0, Math.min(1, p.t-0.18*p.dir));
     const tx = na.x+(nb.x-na.x)*trailT, ty = na.y+(nb.y-na.y)*trailT, tz = na.z+(nb.z-na.z)*trailT;
     const arr = p.tGeo.attributes.position.array;
     arr[0]=tx;arr[1]=ty;arr[2]=tz;arr[3]=px;arr[4]=py;arr[5]=pz;
     p.tGeo.attributes.position.needsUpdate = true;
-    p.trail.material.opacity = 0.4 + 0.3*Math.sin(t*6+k);
+    p.trail.material.opacity = 0.4+0.3*Math.sin(t*6+k);
   }
-
   renderer.render(scene, camera);
 }
 animate();
@@ -325,9 +339,7 @@ animate();
 setInterval(() => {
   const n = new Date();
   document.getElementById('stat-time').textContent =
-    String(n.getHours()).padStart(2,'0')+':'+
-    String(n.getMinutes()).padStart(2,'0')+':'+
-    String(n.getSeconds()).padStart(2,'0');
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
 }, 1000);
 
 // ─── SOCKET.IO ───────────────────────────────────────────────────
@@ -337,11 +349,12 @@ socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
 socket.on('status', (data) => {
   currentState = data.state;
   const badge = document.getElementById('statusBadge');
-  badge.className = 'status-ring ' + data.state;
-  const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE' };
-  document.getElementById('statusText').textContent = labels[data.state] || data.state.toUpperCase();
+  badge.className = 'status-ring ' + (keyboardMode ? 'keyboard' : data.state);
+  const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE', error:'ERREUR' };
+  document.getElementById('statusText').textContent = keyboardMode ? 'MODE CLAVIER' : (labels[data.state] || data.state.toUpperCase());
   const cols = data.state==='thinking' ? PULSE_COLORS_THINKING
              : data.state==='speaking' ? PULSE_COLORS_SPEAKING
+             : keyboardMode ? PULSE_COLORS_KEYBOARD
              : PULSE_COLORS_IDLE;
   synapsePulses.forEach((p, k) => {
     p.mesh.material.color.setHex(cols[k%cols.length]);
@@ -362,9 +375,82 @@ socket.on('response', (data) => {
   typeWriter(respText, data.text, 0, () => {
     addMessage('jarvis', data.text);
     setTimeout(() => respBox.classList.remove('active'), 3000);
+    // En mode clavier, réactive le champ de saisie
+    if (keyboardMode) {
+      document.getElementById('keyboardInput').disabled = false;
+      document.getElementById('btnSend').disabled = false;
+      document.getElementById('keyboardInput').focus();
+    }
   });
 });
 
+// ─── MODE BASCULE MICRO / CLAVIER ────────────────────────────────
+function toggleMode() {
+  keyboardMode = !keyboardMode;
+  const btnMode = document.getElementById('btnMode');
+  const micControls = document.getElementById('micControls');
+  const keyboardControls = document.getElementById('keyboardControls');
+  const badge = document.getElementById('statusBadge');
+  const statusText = document.getElementById('statusText');
+
+  if (keyboardMode) {
+    // Passe en mode clavier
+    btnMode.textContent = '⌨️';
+    btnMode.classList.add('keyboard-mode');
+    micControls.style.display = 'none';
+    keyboardControls.style.display = 'flex';
+    badge.className = 'status-ring keyboard';
+    statusText.textContent = 'MODE CLAVIER';
+    // Arrête JARVIS vocal s'il tournait
+    if (jarvisActive) {
+      socket.emit('stop');
+      jarvisActive = false;
+      document.getElementById('btnStart').textContent = '▶ ACTIVER JARVIS';
+      document.getElementById('btnStart').classList.remove('active');
+    }
+    document.getElementById('keyboardInput').focus();
+    // Couleurs violettes pour le mode clavier
+    synapsePulses.forEach((p, k) => {
+      p.mesh.material.color.setHex(PULSE_COLORS_KEYBOARD[k%PULSE_COLORS_KEYBOARD.length]);
+      p.trail.material.color.setHex(PULSE_COLORS_KEYBOARD[k%PULSE_COLORS_KEYBOARD.length]);
+    });
+  } else {
+    // Retour en mode micro
+    btnMode.textContent = '🎤';
+    btnMode.classList.remove('keyboard-mode');
+    micControls.style.display = 'flex';
+    keyboardControls.style.display = 'none';
+    badge.className = 'status-ring idle';
+    statusText.textContent = 'EN VEILLE';
+    synapsePulses.forEach((p, k) => {
+      p.mesh.material.color.setHex(PULSE_COLORS_IDLE[k%PULSE_COLORS_IDLE.length]);
+      p.trail.material.color.setHex(PULSE_COLORS_IDLE[k%PULSE_COLORS_IDLE.length]);
+    });
+  }
+}
+
+// ─── ENVOI MESSAGE CLAVIER ────────────────────────────────────────
+function sendTextInput() {
+  const input = document.getElementById('keyboardInput');
+  const texte = input.value.trim();
+  if (!texte) return;
+
+  input.value = '';
+  input.disabled = true;
+  document.getElementById('btnSend').disabled = true;
+
+  // Met à jour le badge
+  document.getElementById('statusBadge').className = 'status-ring thinking';
+  document.getElementById('statusText').textContent = 'RÉFLEXION...';
+
+  socket.emit('text_input', { text: texte });
+}
+
+function handleKeyDown(event) {
+  if (event.key === 'Enter') sendTextInput();
+}
+
+// ─── UTILITAIRES ─────────────────────────────────────────────────
 function typeWriter(el, text, i, cb) {
   if (i < text.length) {
     el.innerHTML = text.substring(0, i+1) + '<span class="cursor"></span>';
@@ -385,7 +471,7 @@ function addMessage(role, text) {
   h.scrollTop = h.scrollHeight;
 }
 
-// ─── BOUTON ──────────────────────────────────────────────────────
+// ─── BOUTON MICRO ────────────────────────────────────────────────
 function toggleJarvis() {
   const btn = document.getElementById('btnStart');
   jarvisActive = !jarvisActive;
