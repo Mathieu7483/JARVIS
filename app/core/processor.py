@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 from ollama import Client
 from config import Config
 from app.actions import executer_action
@@ -32,7 +33,7 @@ class Brain:
             "les symboles spéciaux, les tirets et les formatages markdown. Formule uniquement des phrases naturelles."
         )
         self.historique = []
-        
+
         try:
             self.client.chat(
                 model=self.model,
@@ -44,10 +45,29 @@ class Brain:
             print(f"[JARVIS] Attention : Ollama inaccessible — {e}")
             print("[JARVIS] Vérifiez qu'Ollama est bien lancé sur Windows.")
 
+    def _extraire_ville(self, memoire):
+        """Extrait la ville de résidence depuis la mémoire utilisateur."""
+        patterns = [
+            r'vit à ([^,\.\n]+)',
+            r'habite à ([^,\.\n]+)',
+            r'habite ([^,\.\n]+)',
+            r'ville.*?:\s*([^,\.\n]+)',
+            r'réside à ([^,\.\n]+)',
+            r'domicile.*?:\s*([^,\.\n]+)',
+        ]
+        for fait in memoire.get('faits_utilisateur', []):
+            for pattern in patterns:
+                match = re.search(pattern, fait, re.IGNORECASE)
+                if match:
+                    ville = match.group(1).strip()
+                    # Nettoie les caractères parasites
+                    ville = re.sub(r'\s+', ' ', ville).strip(' .,;')
+                    if len(ville) > 2:
+                        return ville
+        return "Thonon-les-Bains"  # Valeur par défaut
+
     def _evaluer_besoin_outils(self, texte_entree):
-        """
-        Première passe d'analyse pour déterminer si JARVIS doit interagir avec le monde extérieur.
-        """
+        """Première passe d'analyse pour déterminer si JARVIS doit interagir avec le monde extérieur."""
         system_analyse = (
             "Tu es le module de classification d'intentions de JARVIS. Analyse la demande de l'utilisateur "
             "et réponds STRICTEMENT avec l'un de ces mots-clés standardisés, sans aucune autre fioriture ni ponctuation :\n"
@@ -61,7 +81,7 @@ class Brain:
                 model=self.model,
                 system=system_analyse,
                 prompt=texte_entree,
-                options={"temperature": 0.0}  # Température nulle pour une classification fiable
+                options={"temperature": 0.0}
             )
             return res['response'].strip()
         except Exception:
@@ -88,7 +108,7 @@ class Brain:
 
         # --- VOIE INTELLIGENTE ET CONNECTÉE (OLLAMA + TOOLS) ---
         try:
-            # 1. Extraction de la mémoire persistante
+            # 1. Chargement de la mémoire persistante
             memoire = charger_memoire()
             contexte_memoire = "Faits connus concernant Monsieur :\n" + "\n".join(memoire['faits_utilisateur'])
             if memoire['connaissances_acquises']:
@@ -99,26 +119,31 @@ class Brain:
             contexte_externe = ""
 
             if decision == "WEATHER":
-                contexte_externe = obtenir_meteo_locale(texte_entree)
+                # Extrait la ville depuis la mémoire — plus de texte brut passé à tools.py
+                ville = self._extraire_ville(memoire)
+                print(f"[JARVIS] Météo demandée pour : {ville}")
+                contexte_externe = obtenir_meteo_locale(ville)
+
             elif decision.startswith("SEARCH:"):
                 sujet = decision.replace("SEARCH:", "").strip()
                 contexte_externe = recherche_web(sujet)
                 ajouter_un_fait("connaissances_acquises", f"Recherche sur {sujet} effectuée le {datetime.now().strftime('%d/%m')}.")
+
             elif decision.startswith("MEMORIZE:"):
                 fait = decision.replace("MEMORIZE:", "").strip()
                 ajouter_un_fait("faits_utilisateur", fait)
                 contexte_externe = "Système de mémoire mis à jour. L'information a été consignée dans vos archives."
 
-            # 3. Construction des invites temporelles et contextuelles
+            # 3. Construction du contexte temporel
             try:
                 maintenant = datetime.now(ZoneInfo("Europe/Paris"))
             except Exception:
                 maintenant = datetime.now()
-            
+
             horodatage = maintenant.strftime("%A %d %B %Y à %H:%M")
             contexte_temporel = f"Information système : Il est actuellement {horodatage}."
 
-            # Construction du prompt système enrichi pour la session de chat
+            # 4. Prompt système enrichi
             system_prompt_enrichi = (
                 f"{self.system_prompt_base}\n\n"
                 f"{contexte_temporel}\n\n"
@@ -126,9 +151,9 @@ class Brain:
             )
 
             if contexte_externe:
-                system_prompt_enrichi += f"\n\n[DONNÉES DU WEB ET OUTILS EN TEMPS RÉEL]\n{contexte_externe}"
+                system_prompt_enrichi += f"\n\n[DONNÉES EN TEMPS RÉEL]\n{contexte_externe}"
 
-            # 4. Envoi de la structure de discussion complète à Ollama
+            # 5. Appel Ollama
             messages = [
                 {"role": "system", "content": system_prompt_enrichi}
             ] + self.historique + [
@@ -143,7 +168,7 @@ class Brain:
 
             reponse_texte = response["message"]["content"].strip()
 
-            # 5. Sauvegarde de l'échange dans l'historique de la session en cours
+            # 6. Sauvegarde dans l'historique de session
             self.historique.append({"role": "user", "content": texte_entree})
             self.historique.append({"role": "assistant", "content": reponse_texte})
             if len(self.historique) > 20:
