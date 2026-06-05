@@ -36,3 +36,5 @@ temp_image.png
 *.swp
 ignorer tout les .pyc
 *.pyc
+#ignore vosk model  
+vosk-model-small-fr-0.22/
