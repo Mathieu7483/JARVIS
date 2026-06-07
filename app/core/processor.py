@@ -6,6 +6,7 @@ from app.actions import executer_action
 from app.core.internet import recherche_web
 from app.core.email_manager import recuperer_derniers_emails
 from app.core.log_analyzer import collecter_logs_systeme
+from app.core.api_connector import executer_requete_api
 from app.core.tools import WeatherTool
 from app.core.memory import charger_memoire, ajouter_un_fait
 from app.core.agents_hub import AvengersDirector
@@ -69,6 +70,13 @@ class Brain:
                         return ville
         return "Thonon-les-Bains"
 
+    def _extraire_chemin_fichier(self, texte: str) -> str:
+        """Extrait un chemin de fichier se terminant par une extension connue pour l'agent ULTRON."""
+        match = re.search(r'([\w\-/]+\.(?:py|log|txt|js|html|css))', texte, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return ""
+
     def _evaluer_besoin_outils(self, texte_entree):
         """Analyse de classification exhaustive pour router vers l'integralité des agents."""
         system_analyse = (
@@ -98,10 +106,14 @@ class Brain:
         except Exception:
             return "NONE"
 
-    def reflechir(self, texte_entree):
+    def reflechir(self, texte_entree: str) -> str:
         if not texte_entree:
             return ""
 
+        # --- PURGE ET RÉINITIALISATION STRICTE DU CONTEXTE ---
+        contexte_externe = ""
+        contexte_dynamique = ""
+        decision = ""
         entree_clean = texte_entree.lower().strip()
 
         # --- VOIE ACTIONS (commandes PC directes) ---
@@ -126,8 +138,7 @@ class Brain:
                 contexte_memoire += "\n\nDernières connaissances acquises sur le web :\n" + "\n".join(memoire['connaissances_acquises'][-3:])
 
             # 2. Analyse de l'intention
-            decision = self._evaluer_besoin_outils(texte_entree)
-            contexte_externe = ""
+            decision = self._evaluer_besoin_outils(entree_clean)
 
             # 3. Traitement du dispatching
             if decision.startswith("AGENT:"):
@@ -156,16 +167,13 @@ class Brain:
                         contexte_dynamique = "[CODE SOURCE REÇU]\nAucun code fourni."
 
                 elif nom_agent == "DAVID":
-                    # 1. Nettoyage chirurgical des mots clés
                     sujet = entree_clean
                     for mot in ["jarvis", "demande à david", "quelles sont", "les dernières", "nouvelles de", "la mise à jour de"]:
                         sujet = sujet.replace(mot, "")
                     
-                    # 2. Suppression de la ponctuation parasite (guillemets, virgules, apostrophes)
                     sujet = re.sub(r"[',\.?!\";:]", " ", sujet)
-                    sujet = " ".join(sujet.split()) # Supprime les espaces multiples
+                    sujet = " ".join(sujet.split())
                     
-                    # 3. Forcer la fraîcheur temporelle si Monsieur parle de "cette année"
                     annee_actuelle = datetime.now().strftime("%Y")
                     if "cette année" in entree_clean or "dernières" in entree_clean:
                         if annee_actuelle not in sujet:
@@ -174,7 +182,6 @@ class Brain:
                     if not sujet:
                         sujet = f"python programming language updates {annee_actuelle}"
 
-                    # 4. Déclenchement de la recherche web réelle
                     resultats_internet = recherche_web(sujet)
                     
                     print("\n" + "="*40)
@@ -191,21 +198,16 @@ class Brain:
                     print("="*40 + "\n")
                     
                     if not flux_emails or flux_emails.strip() == "":
-                        # On injecte une alerte explicite pour saturer l'attention du modèle
                         contexte_dynamique = "[ALERTE SYSTÈME CRITIQUE]\nAucun e-mail reçu. Flux vide."
                     else:
                         contexte_dynamique = f"[E-MAILS RÉELS REÇUS]\n{flux_emails}"
                 
                 elif nom_agent == "TARS":
-                    # Détection dynamique du fichier .log ou .txt mentionné par Monsieur
-                    # Si aucun fichier n'est écrit, on cible par défaut un fichier fictif pour tester la sécurité
                     chemin_cible = "flask_access.log"
-                    
                     match = re.search(r'([\w\-/]+\.(?:log|txt))', texte_entree.lower())
                     if match:
                         chemin_cible = match.group(1)
                     
-                    # Lecture physique du fichier sur le disque wsl
                     donnees_brutes = collecter_logs_systeme(chemin_cible)
                     
                     print("\n" + "="*40)
@@ -213,10 +215,25 @@ class Brain:
                     print("="*40 + "\n")
                     
                     contexte_dynamique = f"[FLUX DE LOGS SYSTEME]\n{donnees_brutes}"
+
+                elif nom_agent == "GEMINI":
+                    url_cible = "https://api.inconnue.com/v1/status"
+                    match = re.search(r'(https?://[^\s]+)', texte_entree)
+                    if match:
+                        url_cible = match.group(1)
+                        
+                    flux_api = executer_requete_api(url_cible)
+                    
+                    print("\n" + "="*40)
+                    print(f"[DEBUG MATRIX] Payload reçu envoyé à GEMINI :\n{flux_api}")
+                    print("="*40 + "\n")
+                    
+                    contexte_dynamique = f"[RETOUR PASSERELLE API]\n{flux_api}"
+                    
                 else:
                     contexte_dynamique = contexte_memoire
                 
-                # Exécution via l'orchestrateur de l'équipe (AvengersDirector)
+                # Exécution via l'orchestrateur de l'équipe
                 contexte_externe = self.directeur_agents.deleguer_tache(
                     nom_agent, 
                     tache=texte_entree, 
@@ -232,20 +249,24 @@ class Brain:
             horodatage = maintenant.strftime("%A %d %B %Y à %H:%M")
             contexte_temporel = f"Information système : Il est actuellement {horodatage}."
 
-            # 5. Prompt système enrichi pour le modèle final (JARVIS)
-            system_prompt_enrichi = (
-                f"{self.system_prompt_base}\n\n"
-                f"{contexte_temporel}\n\n"
-                f"[MÉMOIRE INTERNE]\n{contexte_memoire}"
-            )
-
-            if contexte_externe:
-                system_prompt_enrichi += f"\n\n[RAG / RAPPORT DU SOUS-AGENT CONCERNÉ]\n{contexte_externe}"
+            # 5. Prompt système enrichi pour JARVIS avec isolation hermétique
+            if decision.startswith("AGENT:"):
+                # Nettoyage total : aucune fuite de la mémoire interne globale vers l'évaluation de l'agent
+                system_prompt_enrichi = f"{self.system_prompt_base}\n\n{contexte_temporel}"
+                if contexte_externe:
+                    system_prompt_enrichi += f"\n\n[RAG / RAPPORT DU SOUS-AGENT CONCERNÉ]\n{contexte_externe}"
+            else:
+                # Discussion théorique classique : chargement standard de la mémoire
+                system_prompt_enrichi = (
+                    f"{self.system_prompt_base}\n\n"
+                    f"{contexte_temporel}\n\n"
+                    f"[MÉMOIRE INTERNE]\n{contexte_memoire}"
+                )
 
             # 6. Interception anti-hallucination stricte pour les Agents
             if decision.startswith("AGENT:"):
                 prompt_utilisateur_final = (
-                    "Tu es JARVIS. Tu dois synthétiser le rapport brut du sous-agent pour Monsieur. "
+                    "Tu es JARVIS. Tu devez synthétiser le rapport brut du sous-agent pour Monsieur. "
                     "CONSIGNES ABSOLUES DE FORMALISME :\n"
                     "1. INTERDICTION FORMELLE d'utiliser du markdown, des listes, des tirets, des étoiles ou des puces. Uniquement des phrases rédigées.\n"
                     "2. Supprime toutes les conclusions génériques de chatbot (ex: 'Je reste à votre disposition', 'Il convient d'enquêter'). Va droit au but.\n"
@@ -254,20 +275,26 @@ class Brain:
                     "4. Traduis les faits de manière brute : une série de codes 401 sur un admin est un brute-force. Un code 500 est une erreur de code serveur.\n\n"
                     "Voici le rapport brut à nettoyer et fluidifier :\n"
                     f"\"{contexte_externe}\""
-                    f"\"{contexte_externe}\""
                 )
             else:
                 prompt_utilisateur_final = texte_entree
 
-            # 7. Appel Ollama final
-            temperature_generation = 0.3 if decision.startswith("AGENT:") else 0.6
+            # --- CONFIGURATION DES VARIABLES ET ISOLATION ---
+            temperature_generation = 0.1 if decision.startswith("AGENT:") else 0.6
 
-            messages = [
-                {"role": "system", "content": system_prompt_enrichi}
-            ] + self.historique + [
-                {"role": "user", "content": prompt_utilisateur_final}
-            ]
+            if decision.startswith("AGENT:"):
+                messages = [
+                    {"role": "system", "content": system_prompt_enrichi},
+                    {"role": "user", "content": prompt_utilisateur_final}
+                ]
+            else:
+                messages = [
+                    {"role": "system", "content": system_prompt_enrichi}
+                ] + self.historique + [
+                    {"role": "user", "content": prompt_utilisateur_final}
+                ]
 
+            # Appel Ollama final
             response = self.client.chat(
                 model=self.model,
                 messages=messages,
@@ -288,10 +315,3 @@ class Brain:
             if "connection" in str(e).lower() or "refused" in str(e).lower():
                 return "Monsieur, le cerveau local est inaccessible. Vérifiez qu'Ollama est bien lancé sur Windows."
             return f"Monsieur, une erreur est survenue lors de l'analyse de votre requête : {str(e)}"
-        
-    def _extraire_chemin_fichier(self, texte: str) -> str:
-        """Extrait un chemin de fichier se terminant par .py dans la demande."""
-        match = re.search(r'([\w\-/]+\.py)', texte)
-        if match:
-            return match.group(1)
-        return ""
