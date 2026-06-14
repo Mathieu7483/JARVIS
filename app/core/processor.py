@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
-from ollama import Client
+import asyncio
+from ollama import AsyncClient
 from config import Config
 from app.actions import executer_action
 from app.core.internet import recherche_web
@@ -23,11 +24,12 @@ class Brain:
     def __init__(self):
         Config.validate()
         self.model = "llama3.1:8b"
-        self.client = Client(host=OLLAMA_HOST)
-        self.directeur_agents = AvengersDirector()  # Orchestrateur d'équipe
+        self.client = AsyncClient(host=OLLAMA_HOST)
+        self.directeur_agents = AvengersDirector()
+        
         self.system_prompt_base = (
             f"Tu es JARVIS, l'intelligence artificielle de Monsieur {Config.USER_NAME}. "
-            "Ton ton est formel, calme et strictement professoral. "
+            "Ton ton est formel, calme, direct et strictement professoral. "
             "1. Adresse-toi toujours à lui en l'appelant 'Monsieur'. "
             "2. Sois d'une honnêteté absolue : s'il commet une erreur de programmation ou de logique, "
             "signale-le directement sans détour. Ne sois pas complaisant. "
@@ -35,52 +37,43 @@ class Brain:
             "4. Utilise un vocabulaire riche mais reste efficace. "
             "5. Réponds TOUJOURS en français, quoi qu'il arrive. "
             "6. Tes réponses sont destinées à être lues à voix haute : évite absolument les listes à puces, "
-            "les symboles spéciaux, les tirets et les formatages markdown. Formule uniquement des phrases naturelles."
+            "les symboles spéciaux, les tirets et les formatages markdown. Formule uniquement des phrases naturelles. "
+            "7. INTERDICTION ABSOLUE : Ne simule jamais de dialogue. Ne parle jamais au nom de Monsieur. "
+            "Ne génère aucun texte après avoir fini ta propre phrase."
         )
         self.historique = []
 
+    async def _verifier_connexion_ollama(self):
         try:
-            self.client.chat(
+            await self.client.chat(
                 model=self.model,
                 messages=[{"role": "user", "content": "test"}],
                 options={"num_predict": 1}
             )
             print(f"[JARVIS] Cerveau local ({self.model}) opérationnel.")
         except Exception as e:
-            print(f"[JARVIS] Attention : Ollama inaccessible — {e}")
-            print("[JARVIS] Vérifiez qu'Ollama est bien lancé sur Windows.")
+            print(f"[JARVIS] CRITICAL : Ollama inaccessible — {e}")
 
     def _extraire_ville(self, memoire):
-        """Extrait la ville de résidence depuis la mémoire utilisateur."""
         patterns = [
-            r'vit à ([^,\.\n]+)',
-            r'habite à ([^,\.\n]+)',
-            r'habite ([^,\.\n]+)',
-            r'ville.*?:\s*([^,\.\n]+)',
-            r'réside à ([^,\.\n]+)',
-            r'domicile.*?:\s*([^,\.\n]+)',
+            r'vit à ([^,\.\n]+)', r'habite à ([^,\.\n]+)', r'habite ([^,\.\n]+)',
+            r'ville.*?:\s*([^,\.\n]+)', r'réside à ([^,\.\n]+)', r'domicile.*?:\s*([^,\.\n]+)'
         ]
         for fait in memoire.get('faits_utilisateur', []):
             for pattern in patterns:
                 match = re.search(pattern, fait, re.IGNORECASE)
                 if match:
                     ville = match.group(1).strip()
-                    ville = re.sub(r'\s+', ' ', ville).strip(' .,;')
-                    if len(ville) > 2:
-                        return ville
+                    return re.sub(r'\s+', ' ', ville).strip(' .,;')
         return "Thonon-les-Bains"
 
     def _extraire_chemin_fichier(self, texte: str) -> str:
-        """Extrait un chemin de fichier se terminant par une extension connue pour l'agent ULTRON."""
-        match = re.search(r'([\w\-/]+\.(?:py|log|txt|js|html|css))', texte, re.IGNORECASE)
-        if match:
-            return match.group(1)
-        return ""
+        match = re.search(r'([\w\-/\.]+\.(?:py|log|txt|js|html|css))', texte, re.IGNORECASE)
+        return match.group(1) if match else ""
 
-    def _evaluer_besoin_outils(self, texte_entree):
-        """Analyse de classification exhaustive pour router vers l'integralité des agents."""
+    async def _evaluer_besoin_outils(self, texte_entree: str) -> str:
         system_analyse = (
-            "Tu es le protocole de routage de JARVIS. Tu devez analyser la demande de Monsieur "
+            "Tu es le protocole de routage de JARVIS. Tu dois analyser la demande de Monsieur "
             "et désigner STRICTEMENT l'agent le plus qualifié. Réponds avec le NOM de l'agent ou le mot-clé standardisé, sans fioriture.\n\n"
             "Directives strictes de routage :\n"
             "- Si Monsieur parle d'e-mails, de spams, de sécurité ou de tri de messages : 'AGENT: VERONICA'\n"
@@ -96,7 +89,7 @@ class Brain:
             "- Sinon (salutations, discussion générale, questions théoriques sans outils) : 'NONE'"
         )
         try:
-            res = self.client.generate(
+            res = await self.client.generate(
                 model=self.model,
                 system=system_analyse,
                 prompt=texte_entree,
@@ -106,51 +99,49 @@ class Brain:
         except Exception:
             return "NONE"
 
-    def reflechir(self, texte_entree: str) -> str:
+    async def reflechir(self, texte_entree: str):
         if not texte_entree:
-            return ""
+            return
 
-        # --- PURGE ET RÉINITIALISATION STRICTE DU CONTEXTE ---
         contexte_externe = ""
         contexte_dynamique = ""
         decision = ""
         entree_clean = texte_entree.lower().strip()
 
-        # --- VOIE ACTIONS (commandes PC directes) ---
+        # --- VOIE ACTIONS (OS Directes) ---
         reponse_action = executer_action(texte_entree)
         if reponse_action:
-            return reponse_action
+            yield reponse_action
+            return
 
-        # --- VOIE RAPIDE (heure locale) ---
+        # --- VOIE RAPIDE (Heure) ---
         if "heure" in entree_clean and ("est-il" in entree_clean or "est il" in entree_clean):
             try:
                 maintenant = datetime.now(ZoneInfo("Europe/Paris"))
-                return f"Il est précisément {maintenant.strftime('%H heures %M')}, Monsieur."
+                yield f"Il est précisément {maintenant.strftime('%H heures %M')}, Monsieur."
             except Exception:
-                return f"Il est {datetime.now().strftime('%H heures %M')}, Monsieur."
+                yield f"Il est {datetime.now().strftime('%H heures %M')}, Monsieur."
+            return
 
-        # --- VOIE INTELLIGENTE, CONNECTÉE ET MULTI-AGENTS ---
+        # --- VOIE MULTI-AGENTS ---
         try:
-            # 1. Chargement de la mémoire persistante
             memoire = charger_memoire()
             contexte_memoire = "Faits connus concernant Monsieur :\n" + "\n".join(memoire['faits_utilisateur'])
             if memoire['connaissances_acquises']:
                 contexte_memoire += "\n\nDernières connaissances acquises sur le web :\n" + "\n".join(memoire['connaissances_acquises'][-3:])
 
-            # 2. Analyse de l'intention
-            decision = self._evaluer_besoin_outils(entree_clean)
+            decision = await self._evaluer_besoin_outils(entree_clean)
 
-            # 3. Traitement du dispatching
             if decision.startswith("AGENT:"):
                 nom_agent = decision.replace("AGENT:", "").strip()
-                print(f"[PROCESSING] Délégation de la tâche à l'agent : {nom_agent}")
+                print(f"[PROCESSING] Délégation de la tâche à l'agent spécialisé : {nom_agent}")
                 
-                # --- ISOLATION ET REMPLISSAGE DU CONTEXTE DYNAMIQUE ---
+                self.historique = [] # Purge interférences
+                
                 if nom_agent == "MOTHER":
                     try:
                         from app.core.system_stats import obtenir_stats_machine
-                        vraies_stats = obtenir_stats_machine()
-                        contexte_dynamique = f"[DONNÉES SYSTÈME PHYSIQUES]\n{vraies_stats}"
+                        contexte_dynamique = f"[DONNÉES SYSTÈME PHYSIQUES]\n{obtenir_stats_machine()}"
                     except Exception as e:
                         contexte_dynamique = f"[DONNÉES SYSTÈME PHYSIQUES]\nErreur télémétrie : {e}"
                         
@@ -159,8 +150,7 @@ class Brain:
                     if chemin_fichier:
                         try:
                             from app.core.code_reader import lire_code_source
-                            contenu_code = lire_code_source(chemin_fichier)
-                            contexte_dynamique = f"[CODE SOURCE REÇU]\n{contenu_code}"
+                            contexte_dynamique = f"[CODE SOURCE REÇU]\n{lire_code_source(chemin_fichier)}"
                         except Exception as e:
                             contexte_dynamique = f"[CODE SOURCE REÇU]\nErreur lecture : {e}"
                     else:
@@ -168,11 +158,9 @@ class Brain:
 
                 elif nom_agent == "DAVID":
                     sujet = entree_clean
-                    for mot in ["jarvis", "demande à david", "quelles sont", "les dernières", "nouvelles de", "la mise à jour de"]:
+                    for mot in ["jarvis", "demande à david", "quelles sont", "les dernières", "nouvelles de", "la mise à jour de", "recherche sur", "recherche"]:
                         sujet = sujet.replace(mot, "")
-                    
-                    sujet = re.sub(r"[',\.?!\";:]", " ", sujet)
-                    sujet = " ".join(sujet.split())
+                    sujet = " ".join(re.sub(r"[',\.?!\";:]", " ", sujet).split())
                     
                     annee_actuelle = datetime.now().strftime("%Y")
                     if "cette année" in entree_clean or "dernières" in entree_clean:
@@ -183,135 +171,100 @@ class Brain:
                         sujet = f"python programming language updates {annee_actuelle}"
 
                     resultats_internet = recherche_web(sujet)
-                    
-                    print("\n" + "="*40)
-                    print(f"[DEBUG MATRIX] Contenu internet envoyé à DAVID (Sujet: '{sujet}') :\n{resultats_internet}")
-                    print("="*40 + "\n")
-                    
+                    print(f"\n[DEBUG RAG -> DAVID] Sujet filtré : {sujet}")
                     contexte_dynamique = f"[CONTEXTE INTERNET FOURNI]\n{resultats_internet}"
 
                 elif nom_agent == "VERONICA":
                     flux_emails = recuperer_derniers_emails()
-                    
-                    print("\n" + "="*40)
-                    print(f"[DEBUG MATRIX] Flux e-mails envoyé à VERONICA : '{flux_emails}'")
-                    print("="*40 + "\n")
-                    
-                    if not flux_emails or flux_emails.strip() == "":
-                        contexte_dynamique = "[ALERTE SYSTÈME CRITIQUE]\nAucun e-mail reçu. Flux vide."
-                    else:
-                        contexte_dynamique = f"[E-MAILS RÉELS REÇUS]\n{flux_emails}"
+                    contexte_dynamique = "[ALERTE SYSTÈME CRITIQUE]\nAucun e-mail reçu. Flux vide." if not flux_emails or not flux_emails.strip() else f"[E-MAILS RÉELS REÇUS]\n{flux_emails}"
                 
                 elif nom_agent == "TARS":
                     chemin_cible = "flask_access.log"
                     match = re.search(r'([\w\-/]+\.(?:log|txt))', texte_entree.lower())
-                    if match:
-                        chemin_cible = match.group(1)
-                    
-                    donnees_brutes = collecter_logs_systeme(chemin_cible)
-                    
-                    print("\n" + "="*40)
-                    print(f"[DEBUG MATRIX] Données brutes envoyées à TARS :\n{donnees_brutes}")
-                    print("="*40 + "\n")
-                    
-                    contexte_dynamique = f"[FLUX DE LOGS SYSTEME]\n{donnees_brutes}"
+                    if match: chemin_cible = match.group(1)
+                    contexte_dynamique = f"[FLUX DE LOGS SYSTEME]\n{collecter_logs_systeme(chemin_cible)}"
 
                 elif nom_agent == "GEMINI":
                     url_cible = "https://api.inconnue.com/v1/status"
                     match = re.search(r'(https?://[^\s]+)', texte_entree)
-                    if match:
-                        url_cible = match.group(1)
-                        
-                    flux_api = executer_requete_api(url_cible)
-                    
-                    print("\n" + "="*40)
-                    print(f"[DEBUG MATRIX] Payload reçu envoyé à GEMINI :\n{flux_api}")
-                    print("="*40 + "\n")
-                    
-                    contexte_dynamique = f"[RETOUR PASSERELLE API]\n{flux_api}"
+                    if match: url_cible = match.group(1)
+                    contexte_dynamique = f"[RETOUR PASSERELLE API]\n{executer_requete_api(url_cible)}"
                     
                 else:
                     contexte_dynamique = contexte_memoire
                 
-                # Exécution via l'orchestrateur de l'équipe
                 contexte_externe = self.directeur_agents.deleguer_tache(
-                    nom_agent, 
-                    tache=texte_entree, 
-                    contexte=contexte_dynamique
+                    nom_agent, tache=texte_entree, contexte=contexte_dynamique
                 )
 
-            # 4. Construction du contexte temporel
+            # --- PREPARATION DES PROMPTS DE SORTIE ---
             try:
                 maintenant = datetime.now(ZoneInfo("Europe/Paris"))
             except Exception:
                 maintenant = datetime.now()
 
-            horodatage = maintenant.strftime("%A %d %B %Y à %H:%M")
-            contexte_temporel = f"Information système : Il est actuellement {horodatage}."
+            contexte_temporel = f"Information système : Il est actuellement {maintenant.strftime('%A %d %B %Y à %H:%M')}."
 
-            # 5. Prompt système enrichi pour JARVIS avec isolation hermétique
             if decision.startswith("AGENT:"):
-                # Nettoyage total : aucune fuite de la mémoire interne globale vers l'évaluation de l'agent
-                system_prompt_enrichi = f"{self.system_prompt_base}\n\n{contexte_temporel}"
-                if contexte_externe:
-                    system_prompt_enrichi += f"\n\n[RAG / RAPPORT DU SOUS-AGENT CONCERNÉ]\n{contexte_externe}"
-            else:
-                # Discussion théorique classique : chargement standard de la mémoire
+                # On utilise un rôle Système fort pour forcer JARVIS à n'être qu'un traducteur
                 system_prompt_enrichi = (
                     f"{self.system_prompt_base}\n\n"
                     f"{contexte_temporel}\n\n"
-                    f"[MÉMOIRE INTERNE]\n{contexte_memoire}"
+                    f"CONSIGNE DE MISSION : Tu viens de recevoir le rapport technique de l'agent {nom_agent}. "
+                    "Tu dois UNIQUEMENT reformuler ce rapport pour Monsieur. Si le rapport indique une erreur, "
+                    "une absence de connexion ou un échec, transmets cette information de manière brute et transparente. "
+                    "N'invente aucune donnée, aucun événement, aucune donnée d'agenda."
                 )
-
-            # 6. Interception anti-hallucination stricte pour les Agents
-            if decision.startswith("AGENT:"):
                 prompt_utilisateur_final = (
-                    "Tu es JARVIS. Tu devez synthétiser le rapport brut du sous-agent pour Monsieur. "
-                    "CONSIGNES ABSOLUES DE FORMALISME :\n"
-                    "1. INTERDICTION FORMELLE d'utiliser du markdown, des listes, des tirets, des étoiles ou des puces. Uniquement des phrases rédigées.\n"
-                    "2. Supprime toutes les conclusions génériques de chatbot (ex: 'Je reste à votre disposition', 'Il convient d'enquêter'). Va droit au but.\n"
-                    "CONSIGNES TECHNIQUES LOGIQUES :\n"
-                    "3. L'adresse IP 172.21.176.1 correspond à la machine locale de Monsieur (WSL). Ne la qualifie JAMAIS de suspecte. C'est le trafic normal du serveur.\n"
-                    "4. Traduis les faits de manière brute : une série de codes 401 sur un admin est un brute-force. Un code 500 est une erreur de code serveur.\n\n"
-                    "Voici le rapport brut à nettoyer et fluidifier :\n"
-                    f"\"{contexte_externe}\""
+                    f"[DONNÉES TECHNIQUES À REFORMULER]\n"
+                    f"Rapport de l'agent {nom_agent} : {contexte_externe}\n\n"
+                    f"Reste strictement fidèle à ce rapport pour formuler ta réponse à Monsieur."
                 )
-            else:
-                prompt_utilisateur_final = texte_entree
-
-            # --- CONFIGURATION DES VARIABLES ET ISOLATION ---
-            temperature_generation = 0.1 if decision.startswith("AGENT:") else 0.6
-
-            if decision.startswith("AGENT:"):
                 messages = [
                     {"role": "system", "content": system_prompt_enrichi},
                     {"role": "user", "content": prompt_utilisateur_final}
                 ]
             else:
-                messages = [
-                    {"role": "system", "content": system_prompt_enrichi}
-                ] + self.historique + [
-                    {"role": "user", "content": prompt_utilisateur_final}
-                ]
+                system_prompt_enrichi = (
+                    f"{self.system_prompt_base}\n\n"
+                    f"{contexte_temporel}\n\n"
+                    f"[MÉMOIRE INTERNE DES FAITS CONNUS]\n{contexte_memoire}\n"
+                    "ATTENTION : Les faits ci-dessus sont des éléments de contexte historiques. Ne t'en sers pas pour inventer "
+                    "une actualité ou un rendez-vous fictif si l'utilisateur te dit simplement bonjour ou te pose une question générale."
+                )
+                prompt_utilisateur_final = texte_entree
+                messages = [{"role": "system", "content": system_prompt_enrichi}] + self.historique + [{"role": "user", "content": prompt_utilisateur_final}]
 
-            # Appel Ollama final
-            response = self.client.chat(
+            # --- PARAMÈTRES DE SÉCURITÉ CONTRE L'IMAGINATION (TEMPERATURE & STOP TOKENS) ---
+            # Température bloquée à 0.1 partout pour neutraliser les hallucinations narratives
+            options_generation = {
+                "temperature": 0.1,
+                "num_predict": 400,
+                "stop": ["Monsieur:", "Mathieu:", "\n\n", "Rapport:"]
+            }
+
+            response_stream = await self.client.chat(
                 model=self.model,
                 messages=messages,
-                options={"temperature": temperature_generation, "num_predict": 1000}
+                options=options_generation,
+                stream=True
             )
 
-            reponse_texte = response["message"]["content"].strip()
-            
-            # 8. Sauvegarde dans l'historique de session
-            self.historique.append({"role": "user", "content": texte_entree})
-            self.historique.append({"role": "assistant", "content": reponse_texte})
-            if len(self.historique) > 20:
-                self.historique = self.historique[-20:]
+            reponse_complete = []
+            async for chunk in response_stream:
+                token = chunk["message"]["content"]
+                if token:
+                    reponse_complete.append(token)
+                    yield token
 
-            return reponse_texte
+            texte_final = "".join(reponse_complete).strip()
+            self.historique.append({"role": "user", "content": texte_entree})
+            self.historique.append({"role": "assistant", "content": texte_final})
+            if len(self.historique) > 10:
+                self.historique = self.historique[-10:]
 
         except Exception as e:
             if "connection" in str(e).lower() or "refused" in str(e).lower():
-                return "Monsieur, le cerveau local est inaccessible. Vérifiez qu'Ollama est bien lancé sur Windows."
-            return f"Monsieur, une erreur est survenue lors de l'analyse de votre requête : {str(e)}"
+                yield "Monsieur, le cerveau local est inaccessible. Vérifiez le service Ollama."
+            else:
+                yield f"Monsieur, une anomalie sémantique s'est produite : {str(e)}"
