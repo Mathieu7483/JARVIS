@@ -56,48 +56,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 .msg-bubble{font-size:11px;line-height:1.6;padding:8px 10px;border-radius:2px;border-left:2px solid}
 .msg-bubble.user{border-color:var(--c-blue);background:rgba(0,60,100,0.15);color:var(--c-text)}
 .msg-bubble.jarvis{border-color:#00aa66;background:rgba(0,100,60,0.1);color:#4ae0a0}
-
-/* ─── BARRE DU BAS ─────────────────────────────────────── */
-.bottombar{
-  grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
-  padding:0 16px;gap:12px;
-  border-top:1px solid var(--c-border);background:var(--c-panel);
-}
+.bottombar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:12px;border-top:1px solid var(--c-border);background:var(--c-panel)}
 .sys-stats{display:flex;gap:20px;font-size:9px;color:var(--c-text2);letter-spacing:1px;flex-shrink:0}
-
-/* Mode micro */
 .mic-controls{display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end}
 .btn-start{font-family:var(--font-title);font-size:10px;letter-spacing:3px;padding:8px 20px;border-radius:2px;border:1px solid var(--c-cyan);background:transparent;color:var(--c-cyan);cursor:pointer;transition:all 0.3s}
 .btn-start:hover{background:var(--c-cyan);color:var(--c-bg)}
 .btn-start.active{border-color:#ff4444;color:#ff4444}
 .btn-start.active:hover{background:#ff4444;color:var(--c-bg)}
-
-/* Mode clavier */
 .keyboard-controls{display:none;align-items:center;gap:8px;flex:1}
-.keyboard-input{
-  flex:1;background:rgba(0,20,40,0.8);border:1px solid var(--c-dim);
-  border-radius:2px;padding:8px 14px;
-  color:var(--c-cyan);font-family:var(--font-main);font-size:13px;
-  outline:none;transition:border-color 0.3s;
-}
+.keyboard-input{flex:1;background:rgba(0,20,40,0.8);border:1px solid var(--c-dim);border-radius:2px;padding:8px 14px;color:var(--c-cyan);font-family:var(--font-main);font-size:13px;outline:none;transition:border-color 0.3s}
 .keyboard-input:focus{border-color:var(--c-cyan)}
 .keyboard-input::placeholder{color:var(--c-text2)}
-.btn-send{
-  font-family:var(--font-title);font-size:10px;letter-spacing:2px;
-  padding:8px 16px;border-radius:2px;
-  border:1px solid var(--c-cyan2);background:transparent;color:var(--c-cyan2);
-  cursor:pointer;transition:all 0.3s;flex-shrink:0;
-}
+.btn-send{font-family:var(--font-title);font-size:10px;letter-spacing:2px;padding:8px 16px;border-radius:2px;border:1px solid var(--c-cyan2);background:transparent;color:var(--c-cyan2);cursor:pointer;transition:all 0.3s;flex-shrink:0}
 .btn-send:hover{background:var(--c-cyan2);color:var(--c-bg)}
 .btn-send:disabled{opacity:0.4;cursor:not-allowed}
-
-/* Bouton bascule mode */
-.btn-mode{
-  font-size:16px;padding:6px 10px;border-radius:2px;
-  border:1px solid var(--c-dim);background:transparent;
-  cursor:pointer;transition:all 0.3s;flex-shrink:0;
-  color:var(--c-text2);
-}
+.btn-mode{font-size:16px;padding:6px 10px;border-radius:2px;border:1px solid var(--c-dim);background:transparent;cursor:pointer;transition:all 0.3s;flex-shrink:0;color:var(--c-text2)}
 .btn-mode:hover{border-color:var(--c-cyan);color:var(--c-cyan)}
 .btn-mode.keyboard-mode{border-color:#aa44ff;color:#aa44ff}
 </style>
@@ -145,12 +118,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
       <span>LOCAL INFERENCE</span>
     </div>
 
-    <!-- Mode micro -->
     <div class="mic-controls" id="micControls">
       <button class="btn-start" id="btnStart" onclick="toggleJarvis()">▶ ACTIVER JARVIS</button>
     </div>
 
-    <!-- Mode clavier -->
     <div class="keyboard-controls" id="keyboardControls">
       <input class="keyboard-input" id="keyboardInput" type="text"
              placeholder="Tapez votre message à JARVIS..."
@@ -158,7 +129,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
       <button class="btn-send" id="btnSend" onclick="sendTextInput()">ENVOYER</button>
     </div>
 
-    <!-- Bouton bascule -->
     <button class="btn-mode" id="btnMode" onclick="toggleMode()" title="Basculer micro / clavier">🎤</button>
   </footer>
 </div>
@@ -166,7 +136,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
-// ─── THREE.JS ────────────────────────────────────────────────────
+// ─── THREE.JS (CERVEAU HOLOGRAPHIQUE) ──────────────────────────────
 const W = 800, H = 600;
 const container = document.getElementById('brainContainer');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -179,8 +149,6 @@ const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 100);
 camera.position.set(0, 0, 3.2);
 
 const pivot = new THREE.Group();
-pivot.rotation.x = 0;
-pivot.rotation.z = 0;
 scene.add(pivot);
 
 const group = new THREE.Group();
@@ -193,6 +161,7 @@ let greenParticleSystem = null;
 let currentState = 'idle';
 let jarvisActive = false;
 let keyboardMode = false;
+let reponseEnCours = "";
 
 const PULSE_COLORS_IDLE     = [0x00d4ff, 0x0088cc, 0x00aaff, 0x0066bb];
 const PULSE_COLORS_THINKING = [0xff8800, 0xffaa00, 0xff6600];
@@ -342,7 +311,7 @@ setInterval(() => {
     String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
 }, 1000);
 
-// ─── SOCKET.IO ───────────────────────────────────────────────────
+// ─── SOCKET.IO (ÉCOUTEURS ET COMPORTEMENT) ────────────────────────
 const socket = io();
 socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
 
@@ -352,6 +321,7 @@ socket.on('status', (data) => {
   badge.className = 'status-ring ' + (keyboardMode ? 'keyboard' : data.state);
   const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE', error:'ERREUR' };
   document.getElementById('statusText').textContent = keyboardMode ? 'MODE CLAVIER' : (labels[data.state] || data.state.toUpperCase());
+  
   const cols = data.state==='thinking' ? PULSE_COLORS_THINKING
              : data.state==='speaking' ? PULSE_COLORS_SPEAKING
              : keyboardMode ? PULSE_COLORS_KEYBOARD
@@ -363,25 +333,33 @@ socket.on('status', (data) => {
 });
 
 socket.on('transcription', (data) => {
-  document.getElementById('transText').textContent = data.text;
+  document.getElementById('transText').innerHTML = data.text + '<span class="cursor"></span>';
   document.getElementById('transBox').classList.add('active');
   addMessage('user', data.text);
 });
 
-socket.on('response', (data) => {
-  const respBox = document.getElementById('respBox');
-  const respText = document.getElementById('respText');
-  respBox.classList.add('active');
-  typeWriter(respText, data.text, 0, () => {
+socket.on('clear_response', function() {
+  reponseEnCours = "";
+  document.getElementById('respText').innerHTML = '<span class="cursor"></span>';
+  document.getElementById('respBox').classList.add('active');
+});
+
+socket.on('response_chunk', function(data) {
+  reponseEnCours += data.text;
+  document.getElementById('respText').innerHTML = reponseEnCours + '<span class="cursor"></span>';
+});
+
+socket.on('response_complete', function(data) {
+  if (data.text && data.text.trim() !== "") {
     addMessage('jarvis', data.text);
-    setTimeout(() => respBox.classList.remove('active'), 3000);
-    // En mode clavier, réactive le champ de saisie
-    if (keyboardMode) {
-      document.getElementById('keyboardInput').disabled = false;
-      document.getElementById('btnSend').disabled = false;
-      document.getElementById('keyboardInput').focus();
-    }
-  });
+  }
+  setTimeout(() => document.getElementById('respBox').classList.remove('active'), 4000);
+
+  if (keyboardMode) {
+    document.getElementById('keyboardInput').disabled = false;
+    document.getElementById('btnSend').disabled = false;
+    document.getElementById('keyboardInput').focus();
+  }
 });
 
 // ─── MODE BASCULE MICRO / CLAVIER ────────────────────────────────
@@ -394,14 +372,12 @@ function toggleMode() {
   const statusText = document.getElementById('statusText');
 
   if (keyboardMode) {
-    // Passe en mode clavier
     btnMode.textContent = '⌨️';
     btnMode.classList.add('keyboard-mode');
     micControls.style.display = 'none';
     keyboardControls.style.display = 'flex';
     badge.className = 'status-ring keyboard';
     statusText.textContent = 'MODE CLAVIER';
-    // Arrête JARVIS vocal s'il tournait
     if (jarvisActive) {
       socket.emit('stop');
       jarvisActive = false;
@@ -409,13 +385,11 @@ function toggleMode() {
       document.getElementById('btnStart').classList.remove('active');
     }
     document.getElementById('keyboardInput').focus();
-    // Couleurs violettes pour le mode clavier
     synapsePulses.forEach((p, k) => {
       p.mesh.material.color.setHex(PULSE_COLORS_KEYBOARD[k%PULSE_COLORS_KEYBOARD.length]);
       p.trail.material.color.setHex(PULSE_COLORS_KEYBOARD[k%PULSE_COLORS_KEYBOARD.length]);
     });
   } else {
-    // Retour en mode micro
     btnMode.textContent = '🎤';
     btnMode.classList.remove('keyboard-mode');
     micControls.style.display = 'flex';
@@ -439,7 +413,6 @@ function sendTextInput() {
   input.disabled = true;
   document.getElementById('btnSend').disabled = true;
 
-  // Met à jour le badge
   document.getElementById('statusBadge').className = 'status-ring thinking';
   document.getElementById('statusText').textContent = 'RÉFLEXION...';
 
@@ -451,13 +424,6 @@ function handleKeyDown(event) {
 }
 
 // ─── UTILITAIRES ─────────────────────────────────────────────────
-function typeWriter(el, text, i, cb) {
-  if (i < text.length) {
-    el.innerHTML = text.substring(0, i+1) + '<span class="cursor"></span>';
-    setTimeout(() => typeWriter(el, text, i+1, cb), 22);
-  } else if (cb) cb();
-}
-
 function addMessage(role, text) {
   const h = document.getElementById('history');
   if (h.lastElementChild) {
