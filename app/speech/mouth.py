@@ -7,59 +7,53 @@ import time
 class Mouth:
     def __init__(self):
         self.voice = "fr-FR-HenriNeural"
+        # Initialisation stable et pérenne de la carte son
+        pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=8192)
 
-    def parler(self, texte):
-        if not texte:
-            return
+    async def consommer_et_parler(self, generateur_tokens):
+        """
+        Prend en entrée l'AsyncGenerator du Brain, accumule les mots 
+        par phrases complètes et les prononce à la volée.
+        """
+        buffer_texte = ""
+        filename = "temp_stream_voice.mp3"
+        
+        # Ponctuations qui marquent une fin de phrase nette pour HenriNeural
+        declencheurs_phrase = ['.', '!', '?', '\n']
 
-        # Découpe les longues phrases pour éviter le hachage
-        chunks = self._decouper(texte)
-        filename = "temp_voice.mp3"
+        async for token in generateur_tokens:
+            print(token, end="", flush=True) # Affiche la réponse dans la console en temps réel
+            buffer_texte += token
 
-        for chunk in chunks:
-            if not chunk.strip():
-                continue
-            try:
-                communicate = edge_tts.Communicate(chunk, self.voice)
-                asyncio.run(communicate.save(filename))
+            # Si on détecte une fin de phrase et qu'elle contient assez de matière
+            if any(d in token for d in declencheurs_phrase) and len(buffer_texte.strip()) > 10:
+                phrase_a_dire = buffer_texte.strip()
+                buffer_texte = "" # On vide le buffer pour la phrase suivante
+                
+                await self._generer_et_lire(phrase_a_dire, filename)
 
-                pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=8192)
-                pygame.mixer.music.load(filename)
-                pygame.mixer.music.play()
+        # Une fois le générateur vidé, s'il reste des mots dans le buffer (ex: pas de point final)
+        if buffer_texte.strip():
+            await self._generer_et_lire(buffer_texte.strip(), filename)
 
-                while pygame.mixer.music.get_busy():
-                    time.sleep(0.05)
+    async def _generer_et_lire(self, texte, filename):
+        """Sous-méthode interne d'exécution audio."""
+        try:
+            communicate = edge_tts.Communicate(texte, self.voice)
+            await communicate.save(filename)
 
-                pygame.mixer.music.unload()
-                pygame.mixer.quit()
+            pygame.mixer.music.load(filename)
+            pygame.mixer.music.play()
 
-            except Exception as e:
-                print(f"Erreur mouth : {e}")
-            finally:
-                if os.path.exists(filename):
+            while pygame.mixer.music.get_busy():
+                await asyncio.sleep(0.05) # Non-bloquant pour la boucle d'événements async
+
+            pygame.mixer.music.unload()
+        except Exception as e:
+            print(f"\n[MOUTH ERROR] : {e}")
+        finally:
+            if os.path.exists(filename):
+                try:
                     os.remove(filename)
-
-    def _decouper(self, texte, max_chars=200):
-        """Découpe le texte en chunks sur les ponctuations naturelles."""
-        if len(texte) <= max_chars:
-            return [texte]
-
-        chunks = []
-        separateurs = ['. ', '! ', '? ', ', ', ' ']
-
-        while len(texte) > max_chars:
-            coupe = -1
-            for sep in separateurs:
-                idx = texte.rfind(sep, 0, max_chars)
-                if idx > 0:
-                    coupe = idx + len(sep)
-                    break
-            if coupe == -1:
-                coupe = max_chars
-            chunks.append(texte[:coupe].strip())
-            texte = texte[coupe:].strip()
-
-        if texte:
-            chunks.append(texte)
-
-        return chunks
+                except Exception:
+                    pass
