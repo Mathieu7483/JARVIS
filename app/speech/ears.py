@@ -35,9 +35,10 @@ class Ears:
                 AUDIO_FILE_WSL,
                 language="fr",
                 vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=500)
+                vad_parameters=dict(min_silence_duration_ms=500),
+                initial_prompt="Bonjour JARVIS, ouvre Chrome, lance la musique, quelle heure est-il, météo, recherche, analyse le code"
             )
-
+            
             texte = " ".join([s.text.strip() for s in segments]).strip()
 
             # Filtre les hallucinations Whisper sur silence
