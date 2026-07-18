@@ -2,7 +2,6 @@
 from flask import Flask, render_template, send_from_directory
 from flask_socketio import SocketIO
 import threading
-import asyncio
 import sys
 import os
 import time
@@ -52,28 +51,28 @@ def jarvis_loop():
                 
             socketio.emit('transcription', {'text': texte})
             
-            # 2 & 3. RÉFLEXION ET PAROLE EN STREAMING ASYNCHRONE
+            # 2 & 3. RÉFLEXION ET PAROLE EN STREAMING
             socketio.emit('status', {'state': 'thinking'})
             socketio.emit('clear_response') # Demande à l'interface de vider la boîte de dialogue précédente
             
             if not jarvis_running:
                 break
 
-            # Fonction locale asynchrone pour intercepter et diffuser le flux de jetons
-            async def executer_flux_vocal():
+            # Fonction locale synchrone pour intercepter et diffuser le flux de jetons
+            def executer_flux_vocal():
                 generateur_reponse = brain.reflechir(texte)
                 socketio.emit('status', {'state': 'speaking'})
                 
                 # Liste pour reconstruire la phrase complète
                 phrase_complete = []
 
-                async def extraire_et_emettre(gen):
-                    async for token in gen:
+                def extraire_et_emettre(gen):
+                    for token in gen:
                         socketio.emit('response_chunk', {'text': token})
                         phrase_complete.append(token) # On stocke le token
                         yield token
 
-                await mouth.consommer_et_parler(extraire_et_emettre(generateur_reponse))
+                mouth.consommer_et_parler(extraire_et_emettre(generateur_reponse))
                 
                 # Le flux est fini, on envoie la phrase complète à l'historique
                 texte_final = "".join(phrase_complete).strip()
@@ -81,7 +80,7 @@ def jarvis_loop():
 
             # Verrouillage de l'accès matériel pour la phase de génération et de diction
             with audio_hardware_lock:
-                asyncio.run(executer_flux_vocal())
+                executer_flux_vocal()
             
             # Légère temporisation pour permettre aux pilotes de l'OS de respirer
             time.sleep(0.3)
@@ -133,26 +132,26 @@ def handle_text_input(data):
     socketio.emit('status', {'state': 'thinking'})
     socketio.emit('clear_response')
     
-    async def executer_flux_clavier():
+    def executer_flux_clavier():
         generateur_reponse = brain.reflechir(texte)
         socketio.emit('status', {'state': 'speaking'})
         
         phrase_complete = []
 
-        async def extraire_et_emettre(gen):
-            async for token in gen:
+        def extraire_et_emettre(gen):
+            for token in gen:
                 socketio.emit('response_chunk', {'text': token})
                 phrase_complete.append(token)
                 yield token
 
-        await mouth.consommer_et_parler(extraire_et_emettre(generateur_reponse))
+        mouth.consommer_et_parler(extraire_et_emettre(generateur_reponse))
         
         texte_final = "".join(phrase_complete).strip()
         socketio.emit('response_complete', {'text': texte_final})
 
     # Sécurisation matérielle pour éviter toute interférence avec une écoute micro en cours
     with audio_hardware_lock:
-        asyncio.run(executer_flux_clavier())
+        executer_flux_clavier()
         
     socketio.emit('status', {'state': 'idle'})
 
