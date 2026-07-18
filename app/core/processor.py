@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 import re
-import asyncio
-from ollama import AsyncClient
+from ollama import Client
 from config import Config
 from app.actions import executer_action
 from app.core.internet import recherche_web
 from app.core.email_manager import recuperer_derniers_emails
 from app.core.log_analyzer import collecter_logs_systeme
 from app.core.api_connector import executer_requete_api
-from app.core.tools import WeatherTool
 from app.core.memory import charger_memoire, ajouter_un_fait
 from app.core.agents_hub import AvengersDirector
 from datetime import datetime
@@ -24,9 +22,8 @@ class Brain:
     def __init__(self):
         Config.validate()
         self.model = "llama3.1:8b"
-        self.client = AsyncClient(host=OLLAMA_HOST)
+        self.client = Client(host=OLLAMA_HOST)
         self.directeur_agents = AvengersDirector()
-        
         self.system_prompt_base = (
             f"Tu es JARVIS, l'intelligence artificielle de Monsieur {Config.USER_NAME}. "
             "Ton ton est formel, calme, direct et strictement professoral. "
@@ -43,9 +40,9 @@ class Brain:
         )
         self.historique = []
 
-    async def _verifier_connexion_ollama(self):
+        # Vérification synchrone de la connexion Ollama
         try:
-            await self.client.chat(
+            self.client.chat(
                 model=self.model,
                 messages=[{"role": "user", "content": "test"}],
                 options={"num_predict": 1}
@@ -71,7 +68,7 @@ class Brain:
         match = re.search(r'([\w\-/\.]+\.(?:py|log|txt|js|html|css))', texte, re.IGNORECASE)
         return match.group(1) if match else ""
 
-    async def _evaluer_besoin_outils(self, texte_entree: str) -> str:
+    def _evaluer_besoin_outils(self, texte_entree: str) -> str:
         system_analyse = (
             "Tu es le protocole de routage de JARVIS. Tu dois analyser la demande de Monsieur "
             "et désigner STRICTEMENT l'agent le plus qualifié. Réponds avec le NOM de l'agent ou le mot-clé standardisé, sans fioriture.\n\n"
@@ -89,7 +86,7 @@ class Brain:
             "- Sinon (salutations, discussion générale, questions théoriques sans outils) : 'NONE'"
         )
         try:
-            res = await self.client.generate(
+            res = self.client.generate(
                 model=self.model,
                 system=system_analyse,
                 prompt=texte_entree,
@@ -99,7 +96,8 @@ class Brain:
         except Exception:
             return "NONE"
 
-    async def reflechir(self, texte_entree: str):
+    def reflechir(self, texte_entree: str):
+        """Générateur synchrone — yield token par token pour le streaming."""
         if not texte_entree:
             return
 
@@ -108,13 +106,13 @@ class Brain:
         decision = ""
         entree_clean = texte_entree.lower().strip()
 
-        # --- VOIE ACTIONS (OS Directes) ---
+        # --- VOIE ACTIONS (commandes PC) ---
         reponse_action = executer_action(texte_entree)
         if reponse_action:
             yield reponse_action
             return
 
-        # --- VOIE RAPIDE (Heure) ---
+        # --- VOIE RAPIDE (heure locale) ---
         if "heure" in entree_clean and ("est-il" in entree_clean or "est il" in entree_clean):
             try:
                 maintenant = datetime.now(ZoneInfo("Europe/Paris"))
@@ -130,21 +128,20 @@ class Brain:
             if memoire['connaissances_acquises']:
                 contexte_memoire += "\n\nDernières connaissances acquises sur le web :\n" + "\n".join(memoire['connaissances_acquises'][-3:])
 
-            decision = await self._evaluer_besoin_outils(entree_clean)
+            decision = self._evaluer_besoin_outils(entree_clean)
 
             if decision.startswith("AGENT:"):
                 nom_agent = decision.replace("AGENT:", "").strip()
-                print(f"[PROCESSING] Délégation de la tâche à l'agent spécialisé : {nom_agent}")
-                
-                self.historique = [] # Purge interférences
-                
+                print(f"[PROCESSING] Délégation à l'agent : {nom_agent}")
+                self.historique = []
+
                 if nom_agent == "MOTHER":
                     try:
                         from app.core.system_stats import obtenir_stats_machine
                         contexte_dynamique = f"[DONNÉES SYSTÈME PHYSIQUES]\n{obtenir_stats_machine()}"
                     except Exception as e:
                         contexte_dynamique = f"[DONNÉES SYSTÈME PHYSIQUES]\nErreur télémétrie : {e}"
-                        
+
                 elif nom_agent == "ULTRON":
                     chemin_fichier = self._extraire_chemin_fichier(texte_entree)
                     if chemin_fichier:
@@ -161,43 +158,58 @@ class Brain:
                     for mot in ["jarvis", "demande à david", "quelles sont", "les dernières", "nouvelles de", "la mise à jour de", "recherche sur", "recherche"]:
                         sujet = sujet.replace(mot, "")
                     sujet = " ".join(re.sub(r"[',\.?!\";:]", " ", sujet).split())
-                    
                     annee_actuelle = datetime.now().strftime("%Y")
                     if "cette année" in entree_clean or "dernières" in entree_clean:
                         if annee_actuelle not in sujet:
                             sujet += f" {annee_actuelle}"
-                    
                     if not sujet:
-                        sujet = f"python programming language updates {annee_actuelle}"
-
+                        sujet = f"actualités IA {annee_actuelle}"
                     resultats_internet = recherche_web(sujet)
-                    print(f"\n[DEBUG RAG -> DAVID] Sujet filtré : {sujet}")
+                    print(f"[DEBUG RAG -> DAVID] Sujet : {sujet}")
                     contexte_dynamique = f"[CONTEXTE INTERNET FOURNI]\n{resultats_internet}"
 
                 elif nom_agent == "VERONICA":
                     flux_emails = recuperer_derniers_emails()
-                    contexte_dynamique = "[ALERTE SYSTÈME CRITIQUE]\nAucun e-mail reçu. Flux vide." if not flux_emails or not flux_emails.strip() else f"[E-MAILS RÉELS REÇUS]\n{flux_emails}"
-                
+                    contexte_dynamique = "[ALERTE]\nAucun e-mail reçu." if not flux_emails or not flux_emails.strip() else f"[E-MAILS RÉELS]\n{flux_emails}"
+
                 elif nom_agent == "TARS":
                     chemin_cible = "flask_access.log"
                     match = re.search(r'([\w\-/]+\.(?:log|txt))', texte_entree.lower())
-                    if match: chemin_cible = match.group(1)
-                    contexte_dynamique = f"[FLUX DE LOGS SYSTEME]\n{collecter_logs_systeme(chemin_cible)}"
+                    if match:
+                        chemin_cible = match.group(1)
+                    contexte_dynamique = f"[LOGS]\n{collecter_logs_systeme(chemin_cible)}"
 
                 elif nom_agent == "GEMINI":
                     url_cible = "https://api.inconnue.com/v1/status"
                     match = re.search(r'(https?://[^\s]+)', texte_entree)
-                    if match: url_cible = match.group(1)
-                    contexte_dynamique = f"[RETOUR PASSERELLE API]\n{executer_requete_api(url_cible)}"
-                    
+                    if match:
+                        url_cible = match.group(1)
+                    contexte_dynamique = f"[API]\n{executer_requete_api(url_cible)}"
+
+                elif nom_agent == "WEATHER":
+                    from app.core.tools import obtenir_meteo_locale
+                    ville = self._extraire_ville(memoire)
+                    contexte_dynamique = obtenir_meteo_locale(ville)
+
                 else:
                     contexte_dynamique = contexte_memoire
-                
+
                 contexte_externe = self.directeur_agents.deleguer_tache(
                     nom_agent, tache=texte_entree, contexte=contexte_dynamique
                 )
 
-            # --- PREPARATION DES PROMPTS DE SORTIE ---
+            elif decision == "WEATHER":
+                from app.core.tools import obtenir_meteo_locale
+                ville = self._extraire_ville(memoire)
+                print(f"[JARVIS] Météo pour : {ville}")
+                contexte_externe = obtenir_meteo_locale(ville)
+
+            elif decision.startswith("MEMORIZE:"):
+                fait = decision.replace("MEMORIZE:", "").strip()
+                ajouter_un_fait("faits_utilisateur", fait)
+                contexte_externe = "Information mémorisée avec succès."
+
+            # --- CONSTRUCTION DES PROMPTS ---
             try:
                 maintenant = datetime.now(ZoneInfo("Europe/Paris"))
             except Exception:
@@ -206,19 +218,14 @@ class Brain:
             contexte_temporel = f"Information système : Il est actuellement {maintenant.strftime('%A %d %B %Y à %H:%M')}."
 
             if decision.startswith("AGENT:"):
-                # On utilise un rôle Système fort pour forcer JARVIS à n'être qu'un traducteur
                 system_prompt_enrichi = (
-                    f"{self.system_prompt_base}\n\n"
-                    f"{contexte_temporel}\n\n"
-                    f"CONSIGNE DE MISSION : Tu viens de recevoir le rapport technique de l'agent {nom_agent}. "
-                    "Tu dois UNIQUEMENT reformuler ce rapport pour Monsieur. Si le rapport indique une erreur, "
-                    "une absence de connexion ou un échec, transmets cette information de manière brute et transparente. "
-                    "N'invente aucune donnée, aucun événement, aucune donnée d'agenda."
+                    f"{self.system_prompt_base}\n\n{contexte_temporel}\n\n"
+                    f"CONSIGNE : Tu viens de recevoir le rapport de l'agent {nom_agent}. "
+                    "Reformule-le pour Monsieur en phrases naturelles. Sois fidèle au rapport."
                 )
                 prompt_utilisateur_final = (
-                    f"[DONNÉES TECHNIQUES À REFORMULER]\n"
-                    f"Rapport de l'agent {nom_agent} : {contexte_externe}\n\n"
-                    f"Reste strictement fidèle à ce rapport pour formuler ta réponse à Monsieur."
+                    f"Rapport de {nom_agent} : {contexte_externe}\n\n"
+                    "Reformule ce rapport pour Monsieur."
                 )
                 messages = [
                     {"role": "system", "content": system_prompt_enrichi},
@@ -226,32 +233,28 @@ class Brain:
                 ]
             else:
                 system_prompt_enrichi = (
-                    f"{self.system_prompt_base}\n\n"
-                    f"{contexte_temporel}\n\n"
-                    f"[MÉMOIRE INTERNE DES FAITS CONNUS]\n{contexte_memoire}\n"
-                    "ATTENTION : Les faits ci-dessus sont des éléments de contexte historiques. Ne t'en sers pas pour inventer "
-                    "une actualité ou un rendez-vous fictif si l'utilisateur te dit simplement bonjour ou te pose une question générale."
+                    f"{self.system_prompt_base}\n\n{contexte_temporel}\n\n"
+                    f"[MÉMOIRE]\n{contexte_memoire}"
                 )
+                if contexte_externe:
+                    system_prompt_enrichi += f"\n\n[DONNÉES EN TEMPS RÉEL]\n{contexte_externe}"
                 prompt_utilisateur_final = texte_entree
                 messages = [{"role": "system", "content": system_prompt_enrichi}] + self.historique + [{"role": "user", "content": prompt_utilisateur_final}]
 
-            # --- PARAMÈTRES DE SÉCURITÉ CONTRE L'IMAGINATION (TEMPERATURE & STOP TOKENS) ---
-            # Température bloquée à 0.1 partout pour neutraliser les hallucinations narratives
+            # --- STREAMING SYNCHRONE ---
             options_generation = {
                 "temperature": 0.1,
                 "num_predict": 400,
-                "stop": ["Monsieur:", "Mathieu:", "\n\n", "Rapport:"]
+                "stop": ["Monsieur:", "Mathieu:", "Rapport:"]
             }
 
-            response_stream = await self.client.chat(
+            reponse_complete = []
+            for chunk in self.client.chat(
                 model=self.model,
                 messages=messages,
                 options=options_generation,
                 stream=True
-            )
-
-            reponse_complete = []
-            async for chunk in response_stream:
+            ):
                 token = chunk["message"]["content"]
                 if token:
                     reponse_complete.append(token)
@@ -267,4 +270,4 @@ class Brain:
             if "connection" in str(e).lower() or "refused" in str(e).lower():
                 yield "Monsieur, le cerveau local est inaccessible. Vérifiez le service Ollama."
             else:
-                yield f"Monsieur, une anomalie sémantique s'est produite : {str(e)}"
+                yield f"Monsieur, une anomalie s'est produite : {str(e)}"
