@@ -10,9 +10,9 @@ class Mouth:
         # Initialisation stable et pérenne de la carte son
         pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=8192)
 
-    async def consommer_et_parler(self, generateur_tokens):
+    def consommer_et_parler(self, generateur_tokens):
         """
-        Prend en entrée l'AsyncGenerator du Brain, accumule les mots 
+        Prend en entrée le générateur synchrone du Brain, accumule les mots 
         par phrases complètes et les prononce à la volée.
         """
         buffer_texte = ""
@@ -21,7 +21,7 @@ class Mouth:
         # Ponctuations qui marquent une fin de phrase nette pour HenriNeural
         declencheurs_phrase = ['.', '!', '?', '\n']
 
-        async for token in generateur_tokens:
+        for token in generateur_tokens:
             print(token, end="", flush=True) # Affiche la réponse dans la console en temps réel
             buffer_texte += token
 
@@ -30,23 +30,28 @@ class Mouth:
                 phrase_a_dire = buffer_texte.strip()
                 buffer_texte = "" # On vide le buffer pour la phrase suivante
                 
-                await self._generer_et_lire(phrase_a_dire, filename)
+                self._generer_et_lire(phrase_a_dire, filename)
 
         # Une fois le générateur vidé, s'il reste des mots dans le buffer (ex: pas de point final)
         if buffer_texte.strip():
-            await self._generer_et_lire(buffer_texte.strip(), filename)
+            self._generer_et_lire(buffer_texte.strip(), filename)
 
-    async def _generer_et_lire(self, texte, filename):
-        """Sous-méthode interne d'exécution audio."""
+    def _generer_et_lire(self, texte, filename):
+        """Sous-méthode interne d'exécution audio, encapsulant l'appel asynchrone de edge_tts."""
         try:
-            communicate = edge_tts.Communicate(texte, self.voice)
-            await communicate.save(filename)
+            # Encapsulation stricte de la partie asynchrone pour edge_tts
+            async def generer_audio():
+                communicate = edge_tts.Communicate(texte, self.voice)
+                await communicate.save(filename)
+                
+            # Exécution isolée de la coroutine
+            asyncio.run(generer_audio())
 
             pygame.mixer.music.load(filename)
             pygame.mixer.music.play()
 
             while pygame.mixer.music.get_busy():
-                await asyncio.sleep(0.05) # Non-bloquant pour la boucle d'événements async
+                time.sleep(0.05) # Attente synchrone standard
 
             pygame.mixer.music.unload()
         except Exception as e:
