@@ -11,7 +11,7 @@ class TeamAgent:
         self.specialite = specialite
         self.prompt_systeme = prompt_systeme
         self.client = Client(host=OLLAMA_HOST)
-        self.model = "llama3.1:8b"
+        self.model = "llama3.2:3b"
 
     def executer(self, tache: str, contexte: str = "") -> str:
         """Exécute la tâche dédiée en injectant rigoureusement le contexte système."""
