@@ -20,7 +20,7 @@ OLLAMA_HOST = "http://172.21.176.1:11434"
 class Brain:
     def __init__(self):
         Config.validate()
-        self.model = "llama3.1:8b"
+        self.model = "llama3.2:3b"
         self.client = Client(host=OLLAMA_HOST)
         self.directeur_agents = AvengersDirector()
         self.system_prompt_base = (
