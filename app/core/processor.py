@@ -6,7 +6,6 @@ from app.actions import executer_action
 from app.core.internet import recherche_web
 from app.core.email_manager import recuperer_derniers_emails
 from app.core.log_analyzer import collecter_logs_systeme
-from app.core.api_connector import executer_requete_api
 from app.core.memory import charger_memoire, ajouter_un_fait
 from app.core.agents_hub import AvengersDirector
 from datetime import datetime
@@ -184,7 +183,7 @@ class Brain:
                     match = re.search(r'(https?://[^\s]+)', texte_entree)
                     if match:
                         url_cible = match.group(1)
-                    contexte_dynamique = f"[API]\n{executer_requete_api(url_cible)}"
+                    contexte_dynamique = f"[RÉPONSE API]\n{self.directeur_agents.interroger_api_externe(url_cible)}"
 
                 elif nom_agent == "WEATHER":
                     from app.core.tools import obtenir_meteo_locale
