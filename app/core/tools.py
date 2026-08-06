@@ -72,3 +72,20 @@ class WeatherTool:
 
         except Exception as e:
             return {"error": f"Erreur technique lors de la récupération météo : {str(e)}"}
+
+
+def obtenir_meteo_locale(ville: str = "Thonon-les-Bains") -> str:
+    """Instancie WeatherTool et retourne un texte formaté pour JARVIS."""
+    tool = WeatherTool()
+    res = tool.execute(ville)
+
+    if "error" in res:
+        return f"Erreur météo : {res['error']}"
+
+    prev = res.get("previsions_demain", {})
+    return (
+        f"Météo actuelle à {res['ville']} : {res['temperature_actuelle']}°C, "
+        f"vent à {res['vitesse_vent']} km/h. "
+        f"Demain : temps {prev.get('condition', 'non spécifié')} avec des températures "
+        f"entre {prev.get('temp_min')}°C et {prev.get('temp_max')}°C."
+    )
