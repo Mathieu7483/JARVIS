@@ -25,7 +25,7 @@ class Brain:
         
         self.system_prompt_base = (
             f"Tu es JARVIS, l'intelligence artificielle de Monsieur {Config.USER_NAME}. "
-            "Ton ton est formel, calme, direct et strictement professoral. "
+            "Ton ton est formel, calme, direct et strictly professoral. "
             "1. Adresse-toi toujours à lui en l'appelant 'Monsieur'. "
             "2. Sois d'une honnêteté absolue : s'il commet une erreur de programmation ou de logique, "
             "signale-le directement sans détour. Ne sois pas complaisant. "
@@ -75,7 +75,7 @@ class Brain:
                 model=self.model,
                 system=system_analyse,
                 prompt=texte_entree,
-                options={"temperature": 0.0}
+                options={"temperature": 0.0, "num_predict": 20}
             )
             return res['response'].strip()
         except Exception:
