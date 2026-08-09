@@ -5,20 +5,21 @@ import threading
 import sys
 import os
 import time
+import re
 
-# Ajoute le répertoire JARVIS au path pour l'importation de tes modules
+# Ajoute le répertoire JARVIS au path
 sys.path.insert(0, os.path.expanduser('~/JARVIS'))
 
 from app.speech.ears import Ears
 from app.speech.mouth import Mouth
 from app.core.processor import Brain
+from app.core import system_stats
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'jarvis-secret'
-# Utilisation du mode threading pour le développement local
+# Note: async_mode='gevent' ou 'eventlet' offre des performances accrues pour le streaming audio
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# Initialisation unique des composants lourds au démarrage du serveur
 print("[JARVIS] Chargement des modules IA (Ears, Brain, Mouth)...")
 ears = Ears()
 brain = Brain()
@@ -27,8 +28,65 @@ print("[JARVIS] Modules chargés avec succès.")
 
 jarvis_running = False
 jarvis_thread = None
-thread_lock = threading.Lock()         # Gestion de la concurrence sur le cycle du thread global
-audio_hardware_lock = threading.Lock() # Protection stricte de la carte son (Écoute VS Parole)
+telemetry_thread_started = False
+thread_lock = threading.Lock()
+audio_hardware_lock = threading.Lock()
+
+def mother_telemetry_loop():
+    """Tâche d'arrière-plan diffusant l'état CPU/RAM via WebSocket."""
+    print("[MOTHER] Démarrage du flux de télémétrie...")
+    while True:
+        try:
+            stats = system_stats.get_system_stats_dict()
+            socketio.emit('mother_telemetry', {
+                'cpu': stats.get('cpu', 0),
+                'ram': stats.get('ram', 0)
+            })
+        except Exception as e:
+            print(f"[MOTHER ERROR] Erreur télémétrie : {e}", file=sys.stderr)
+        
+        socketio.sleep(2)
+
+@socketio.on('connect')
+def handle_connect():
+    global telemetry_thread_started
+    with thread_lock:
+        if not telemetry_thread_started:
+            socketio.start_background_task(target=mother_telemetry_loop)
+            telemetry_thread_started = True
+
+def streamer_reponse_et_vocal(texte_input):
+    """Génère la réponse d'Ollama token par token et émet le texte + audio fluide par morceau."""
+    socketio.emit('status', {'state': 'speaking'})
+    generateur_reponse = brain.reflechir(texte_input)
+    
+    phrase_buffer = ""
+    texte_complet = []
+
+    for token in generateur_reponse:
+        if not jarvis_running and threading.current_thread() == jarvis_thread:
+            break
+
+        # 1. Emission temps réel du token texte au navigateur
+        socketio.emit('response_chunk', {'text': token})
+        phrase_buffer += token
+        texte_complet.append(token)
+
+        # 2. Découpage dynamique sur la ponctuation (., !, ?, ;) pour la vocalisation fluide
+        if re.search(r'[.,?!;]\s*$', phrase_buffer):
+            sub_phrase = phrase_buffer.strip()
+            if len(sub_phrase) > 1:
+                # Synthèse locale via Mouth (ou streaming audio)
+                mouth.parler(sub_phrase)
+            phrase_buffer = ""
+
+    # Reliquat de fin de texte sans ponctuation
+    if phrase_buffer.strip():
+        sub_phrase = phrase_buffer.strip()
+        mouth.parler(sub_phrase)
+        
+    texte_final = "".join(texte_complet).strip()
+    socketio.emit('response_complete', {'text': texte_final})
 
 def jarvis_loop():
     global jarvis_running
@@ -36,7 +94,6 @@ def jarvis_loop():
     
     while jarvis_running:
         try:
-            # 1. ÉCOUTE MATÉRIELLE SÉCURISÉE
             socketio.emit('status', {'state': 'listening'})
             
             with audio_hardware_lock:
@@ -46,44 +103,20 @@ def jarvis_loop():
                 break
                 
             if not texte or len(texte.strip()) < 2:
-                time.sleep(0.2)  # Pause pour soulager le CPU
+                time.sleep(0.1)
                 continue
                 
             socketio.emit('transcription', {'text': texte})
-            
-            # 2 & 3. RÉFLEXION ET PAROLE EN STREAMING
             socketio.emit('status', {'state': 'thinking'})
-            socketio.emit('clear_response') # Demande à l'interface de vider la boîte de dialogue précédente
+            socketio.emit('clear_response')
             
             if not jarvis_running:
                 break
 
-            # Fonction locale synchrone pour intercepter et diffuser le flux de jetons
-            def executer_flux_vocal():
-                generateur_reponse = brain.reflechir(texte)
-                socketio.emit('status', {'state': 'speaking'})
-                
-                # Liste pour reconstruire la phrase complète
-                phrase_complete = []
-
-                def extraire_et_emettre(gen):
-                    for token in gen:
-                        socketio.emit('response_chunk', {'text': token})
-                        phrase_complete.append(token) # On stocke le token
-                        yield token
-
-                mouth.consommer_et_parler(extraire_et_emettre(generateur_reponse))
-                
-                # Le flux est fini, on envoie la phrase complète à l'historique
-                texte_final = "".join(phrase_complete).strip()
-                socketio.emit('response_complete', {'text': texte_final})
-
-            # Verrouillage de l'accès matériel pour la phase de génération et de diction
             with audio_hardware_lock:
-                executer_flux_vocal()
+                streamer_reponse_et_vocal(texte)
             
-            # Légère temporisation pour permettre aux pilotes de l'OS de respirer
-            time.sleep(0.3)
+            time.sleep(0.2)
             
         except Exception as e:
             print(f"[JARVIS ERROR] Erreur dans la boucle principale : {e}", file=sys.stderr)
@@ -110,8 +143,6 @@ def handle_start():
             jarvis_thread = threading.Thread(target=jarvis_loop, daemon=True)
             jarvis_thread.start()
             print("[JARVIS] Signal de démarrage reçu.")
-        else:
-            print("[JARVIS] Demande de démarrage ignorée : déjà en cours d'exécution.")
 
 @socketio.on('stop')
 def handle_stop():
@@ -119,11 +150,10 @@ def handle_stop():
     with thread_lock:
         if jarvis_running:
             jarvis_running = False
-            print("[JARVIS] Signal d'arrêt reçu. Arrêt au prochain cycle disponible...")
+            print("[JARVIS] Signal d'arrêt reçu.")
 
 @socketio.on('text_input')
 def handle_text_input(data):
-    """Gestion des entrées manuelles textuelles depuis l'interface graphique."""
     texte = data.get('text', '').strip()
     if not texte:
         return
@@ -132,30 +162,13 @@ def handle_text_input(data):
     socketio.emit('status', {'state': 'thinking'})
     socketio.emit('clear_response')
     
-    def executer_flux_clavier():
-        generateur_reponse = brain.reflechir(texte)
-        socketio.emit('status', {'state': 'speaking'})
-        
-        phrase_complete = []
+    def run_async():
+        with audio_hardware_lock:
+            streamer_reponse_et_vocal(texte)
+        socketio.emit('status', {'state': 'idle'})
 
-        def extraire_et_emettre(gen):
-            for token in gen:
-                socketio.emit('response_chunk', {'text': token})
-                phrase_complete.append(token)
-                yield token
-
-        mouth.consommer_et_parler(extraire_et_emettre(generateur_reponse))
-        
-        texte_final = "".join(phrase_complete).strip()
-        socketio.emit('response_complete', {'text': texte_final})
-
-    # Sécurisation matérielle pour éviter toute interférence avec une écoute micro en cours
-    with audio_hardware_lock:
-        executer_flux_clavier()
-        
-    socketio.emit('status', {'state': 'idle'})
+    threading.Thread(target=run_async, daemon=True).start()
 
 if __name__ == '__main__':
     print("[JARVIS] Interface web disponible sur http://localhost:5000")
-    # debug=False est impératif pour empêcher la double instanciation des modèles d'IA par le reloader Flask
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
