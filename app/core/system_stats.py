@@ -2,17 +2,13 @@
 import psutil
 
 def obtenir_stats_machine():
-    """Récupère l'état matériel réel de la machine hôte."""
+    """Récupère l'état matériel réel sous forme de texte formaté."""
     try:
-        # Mesure de la charge CPU globale sur un intervalle court
         cpu_usage = psutil.cpu_percent(interval=0.5)
-        
-        # Récupération des constantes de la mémoire vive
         ram = psutil.virtual_memory()
         ram_dispo_go = ram.available / (1024 ** 3)
         ram_totale_go = ram.total / (1024 ** 3)
         
-        # Structuration du rapport brut destiné à MOTHER
         return (
             "Statistiques Hardware Réelles :\n"
             f"- Utilisation CPU : {cpu_usage}%\n"
@@ -20,3 +16,17 @@ def obtenir_stats_machine():
         )
     except Exception as e:
         return f"Erreur critique lors de la lecture des capteurs matériels : {e}"
+
+def get_system_stats_dict():
+    """Retourne les métriques brutes pour le flux WebSocket MOTHER."""
+    try:
+        # interval=None pour éviter de bloquer la boucle d'événements SocketIO
+        cpu_usage = psutil.cpu_percent(interval=None)
+        ram = psutil.virtual_memory()
+        
+        return {
+            "cpu": cpu_usage,
+            "ram": ram.percent
+        }
+    except Exception:
+        return {"cpu": 0, "ram": 0}
