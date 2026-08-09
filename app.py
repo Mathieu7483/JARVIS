@@ -18,7 +18,7 @@ from app.core import system_stats
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'jarvis-secret'
 # Note: async_mode='gevent' ou 'eventlet' offre des performances accrues pour le streaming audio
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 
 print("[JARVIS] Chargement des modules IA (Ears, Brain, Mouth)...")
 ears = Ears()
