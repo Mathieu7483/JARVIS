@@ -32,7 +32,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 .status-ring.speaking .status-indicator{background:var(--c-cyan2);animation-duration:0.3s}
 .status-ring.keyboard .status-indicator{background:#aa44ff;animation-duration:1s}
 .visualizer{position:relative;z-index:1;display:flex;align-items:flex-end;gap:3px;height:40px;width:180px}
-.vbar{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(to top,var(--c-blue),var(--c-cyan));animation:vwave ease-in-out infinite alternate;opacity:0.7}
+.vbar{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(to top,var(--c-blue),var(--c-cyan));height:8%;transition:height 0.1s ease}
+.visualizer.active .vbar{animation:vwave ease-in-out infinite alternate}
 .vbar:nth-child(1){animation-duration:.5s}.vbar:nth-child(2){animation-duration:.7s}.vbar:nth-child(3){animation-duration:.4s}
 .vbar:nth-child(4){animation-duration:.9s}.vbar:nth-child(5){animation-duration:.6s}.vbar:nth-child(6){animation-duration:.8s}
 .vbar:nth-child(7){animation-duration:.5s}.vbar:nth-child(8){animation-duration:.7s}.vbar:nth-child(9){animation-duration:.4s}
@@ -73,6 +74,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 .btn-mode{font-size:16px;padding:6px 10px;border-radius:2px;border:1px solid var(--c-dim);background:transparent;cursor:pointer;transition:all 0.3s;flex-shrink:0;color:var(--c-text2)}
 .btn-mode:hover{border-color:var(--c-cyan);color:var(--c-cyan)}
 .btn-mode.keyboard-mode{border-color:#aa44ff;color:#aa44ff}
+.widget-mother { padding: 12px 16px; background: rgba(4, 12, 24, 0.6); border-bottom: 1px solid var(--c-border); display: flex; flex-direction: column; gap: 10px; }
+.stat-group { display: flex; flex-direction: column; gap: 4px; }
+.stat-info { display: flex; justify-content: space-between; font-size: 9px; }
+.stat-label { color: var(--c-text2); letter-spacing: 1px; }
+.stat-value { color: var(--c-cyan2); font-family: var(--font-main); }
+.progress-bar { width: 100%; height: 3px; background: var(--c-dim); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--c-blue), var(--c-cyan)); transition: width 0.4s ease; }
+.hud-corner { position: absolute; font-size: 8px; letter-spacing: 2px; color: var(--c-text2); border: 1px solid var(--c-border); padding: 4px 8px; background: rgba(4, 8, 15, 0.7); pointer-events: none; }
+.hud-corner.top-left { top: 16px; left: 16px; border-left: 2px solid var(--c-cyan); }
+.hud-corner.top-right { top: 16px; right: 16px; border-right: 2px solid var(--c-cyan); }
+.hud-corner.bottom-left { bottom: 16px; left: 16px; border-left: 2px solid var(--c-cyan); }
+.hud-corner.bottom-right { bottom: 16px; right: 16px; border-right: 2px solid var(--c-cyan); }
+body::after { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; z-index: 100; pointer-events: none; opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -87,30 +101,57 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
   </header>
 
   <main class="center">
-    <div id="brainContainer"></div>
-    <div class="status-ring" id="statusBadge">
-      <div class="status-indicator"></div>
-      <span id="statusText">EN VEILLE</span>
-    </div>
-    <div class="visualizer">
-      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
-      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
-      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
-    </div>
-    <div class="tbox" id="transBox">
-      <div class="tbox-label">TRANSCRIPTION</div>
-      <div class="tbox-text" id="transText"><span class="cursor"></span></div>
-    </div>
-    <div class="tbox" id="respBox">
-      <div class="tbox-label">RÉPONSE JARVIS</div>
-      <div class="tbox-text response" id="respText"><span class="cursor"></span></div>
-    </div>
-  </main>
+  <div class="hud-corner top-left">SYS.LOC // THONON.FR</div>
+  <div class="hud-corner top-right">CORE: ONLINE</div>
+  <div class="hud-corner bottom-left">PROTOCOLE: ACTIVE</div>
+  <div class="hud-corner bottom-right">LATENCY: 12ms</div>
+
+  <div id="brainContainer"></div>
+  
+  <div class="status-ring" id="statusBadge">
+    <div class="status-indicator"></div>
+    <span id="statusText">EN VEILLE</span>
+  </div>
+
+  <div class="visualizer" id="visualizer">
+    <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+    <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+    <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+  </div>
+
+  <div class="tbox" id="transBox">
+    <div class="tbox-label">TRANSCRIPTION</div>
+    <div class="tbox-text" id="transText"><span class="cursor"></span></div>
+  </div>
+
+  <div class="tbox" id="respBox">
+    <div class="tbox-label">RÉPONSE JARVIS</div>
+    <div class="tbox-text response" id="respText"><span class="cursor"></span></div>
+  </div>
+</main>
 
   <aside class="right-panel">
-    <div class="panel-header">HISTORIQUE DE CONVERSATION</div>
-    <div class="history" id="history"></div>
-  </aside>
+  <div class="panel-header">SYSTÈME — TELEMÉTRIE MOTHER</div>
+  <div class="widget-mother" id="motherWidget">
+    <div class="stat-group">
+      <div class="stat-info">
+        <span class="stat-label">CENTRAL PROCESSOR</span>
+        <span class="stat-value" id="widget-cpu-text">-- %</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="widget-cpu-bar" style="width: 0%"></div></div>
+    </div>
+    <div class="stat-group">
+      <div class="stat-info">
+        <span class="stat-label">RAM USAGE</span>
+        <span class="stat-value" id="widget-gpu-text">-- %</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="widget-gpu-bar" style="width: 0%"></div></div>
+    </div>
+  </div>
+
+  <div class="panel-header">HISTORIQUE DE CONVERSATION</div>
+  <div class="history" id="history"></div>
+</aside>
 
   <footer class="bottombar">
     <div class="sys-stats">
@@ -154,14 +195,8 @@ scene.add(pivot);
 const group = new THREE.Group();
 pivot.add(group);
 
-let synapseNodes = [];
-let synapsePulses = [];
-let synapseLines = null;
-let greenParticleSystem = null;
-let currentState = 'idle';
-let jarvisActive = false;
-let keyboardMode = false;
-let reponseEnCours = "";
+let synapseNodes = [], synapsePulses = [], synapseLines = null, greenParticleSystem = null;
+let currentState = 'idle', jarvisActive = false, keyboardMode = false, reponseEnCours = "";
 
 const PULSE_COLORS_IDLE     = [0x00d4ff, 0x0088cc, 0x00aaff, 0x0066bb];
 const PULSE_COLORS_THINKING = [0xff8800, 0xffaa00, 0xff6600];
@@ -178,9 +213,7 @@ fetch('/static/brain_points.json')
 
 function buildSynapses(pulseColors) {
   while(group.children.length > 0) group.remove(group.children[0]);
-  synapsePulses = [];
-  synapseLines = null;
-  greenParticleSystem = null;
+  synapsePulses = []; synapseLines = null; greenParticleSystem = null;
 
   const connections = [], lineVerts = [];
   const STEP = 2, distMax = 0.18, probConn = 0.45;
@@ -313,6 +346,8 @@ setInterval(() => {
 
 // ─── SOCKET.IO (ÉCOUTEURS ET COMPORTEMENT) ────────────────────────
 const socket = io();
+const visualizerEl = document.getElementById('visualizer');
+
 socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
 
 socket.on('status', (data) => {
@@ -322,6 +357,12 @@ socket.on('status', (data) => {
   const labels = { listening:'EN ÉCOUTE', thinking:'RÉFLEXION...', speaking:'EN COURS...', idle:'EN VEILLE', error:'ERREUR' };
   document.getElementById('statusText').textContent = keyboardMode ? 'MODE CLAVIER' : (labels[data.state] || data.state.toUpperCase());
   
+  if (data.state === 'speaking') {
+    visualizerEl.classList.add('active');
+  } else {
+    visualizerEl.classList.remove('active');
+  }
+
   const cols = data.state==='thinking' ? PULSE_COLORS_THINKING
              : data.state==='speaking' ? PULSE_COLORS_SPEAKING
              : keyboardMode ? PULSE_COLORS_KEYBOARD
@@ -453,6 +494,25 @@ function toggleJarvis() {
     document.getElementById('respText').innerHTML = '<span class="cursor"></span>';
   }
 }
+
+socket.on('mother_telemetry', (data) => {
+  const cpu = Math.round(data.cpu || 0);
+  const gpu = Math.round(data.ram || data.gpu || 0);
+
+  const cpuText = document.getElementById('widget-cpu-text');
+  const cpuBar = document.getElementById('widget-cpu-bar');
+  const gpuText = document.getElementById('widget-gpu-text');
+  const gpuBar = document.getElementById('widget-gpu-bar');
+
+  if (cpuText && cpuBar) {
+    cpuText.textContent = cpu + ' %';
+    cpuBar.style.width = cpu + '%';
+  }
+  if (gpuText && gpuBar) {
+    gpuText.textContent = gpu + ' %';
+    gpuBar.style.width = gpu + '%';
+  }
+});
 </script>
 </body>
 </html>
