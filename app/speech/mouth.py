@@ -1,59 +1,77 @@
+#!/usr/bin/env python3
 import os
 import asyncio
 import edge_tts
 import pygame
 import time
+import threading
 
 class Mouth:
     def __init__(self):
         self.voice = "fr-FR-HenriNeural"
-        # Initialisation stable et pérenne de la carte son
-        pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=8192)
+        # Initialisation de la carte son
+        if not pygame.mixer.get_init():
+            pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=8192)
+        
+        # Event loop asyncio dédiée à Edge TTS pour éviter la surconsommation de asyncio.run()
+        self._loop = asyncio.new_event_loop()
+        self._loop_thread = threading.Thread(target=self._run_asyncio_loop, daemon=True)
+        self._loop_thread.start()
+
+    def _run_asyncio_loop(self):
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    def parler(self, texte_phrase: str):
+        """
+        Prononce une sous-phrase immédiatement à la volée.
+        Méthode non-bloquante pour la restitution texte UI.
+        """
+        if not texte_phrase or len(texte_phrase.strip()) < 2:
+            return
+
+        filename = f"temp_stream_{int(time.time() * 1000)}.mp3"
+        self._generer_et_lire(texte_phrase.strip(), filename)
 
     def consommer_et_parler(self, generateur_tokens):
         """
-        Prend en entrée le générateur synchrone du Brain, accumule les mots 
-        par phrases complètes et les prononce à la volée.
+        Méthode legacy : consomme un générateur de tokens, accumule par phrases
+        et lit la parole au fil de l'eau.
         """
         buffer_texte = ""
-        filename = "temp_stream_voice.mp3"
-        
-        # Ponctuations qui marquent une fin de phrase nette pour HenriNeural
-        declencheurs_phrase = ['.', '!', '?', '\n']
+        declencheurs = ['.', '!', '?', '\n', ';']
 
         for token in generateur_tokens:
-            print(token, end="", flush=True) # Affiche la réponse dans la console en temps réel
+            print(token, end="", flush=True)
             buffer_texte += token
 
-            # Si on détecte une fin de phrase et qu'elle contient assez de matière
-            if any(d in token for d in declencheurs_phrase) and len(buffer_texte.strip()) > 10:
-                phrase_a_dire = buffer_texte.strip()
-                buffer_texte = "" # On vide le buffer pour la phrase suivante
-                
-                self._generer_et_lire(phrase_a_dire, filename)
+            if any(d in token for d in declencheurs) and len(buffer_texte.strip()) > 10:
+                self.parler(buffer_texte.strip())
+                buffer_texte = ""
 
-        # Une fois le générateur vidé, s'il reste des mots dans le buffer (ex: pas de point final)
         if buffer_texte.strip():
-            self._generer_et_lire(buffer_texte.strip(), filename)
+            self.parler(buffer_texte.strip())
 
     def _generer_et_lire(self, texte, filename):
-        """Sous-méthode interne d'exécution audio, encapsulant l'appel asynchrone de edge_tts."""
+        """Génération via Edge-TTS et restitution audio synchrone contrôlée."""
         try:
-            # Encapsulation stricte de la partie asynchrone pour edge_tts
-            async def generer_audio():
+            async def _async_generate():
                 communicate = edge_tts.Communicate(texte, self.voice)
                 await communicate.save(filename)
-                
-            # Exécution isolée de la coroutine
-            asyncio.run(generer_audio())
 
-            pygame.mixer.music.load(filename)
-            pygame.mixer.music.play()
+            # Soumission à la boucle asyncio dédiée
+            future = asyncio.run_coroutine_threadsafe(_async_generate(), self._loop)
+            future.result(timeout=10) # Timeout de sécurité si la connexion Edge déraille
 
-            while pygame.mixer.music.get_busy():
-                time.sleep(0.05) # Attente synchrone standard
+            if os.path.exists(filename):
+                pygame.mixer.music.load(filename)
+                pygame.mixer.music.play()
 
-            pygame.mixer.music.unload()
+                while pygame.mixer.music.get_busy():
+                    time.sleep(0.02)
+
+                pygame.mixer.music.unload()
+
         except Exception as e:
             print(f"\n[MOUTH ERROR] : {e}")
         finally:
