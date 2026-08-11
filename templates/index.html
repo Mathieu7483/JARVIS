@@ -87,6 +87,46 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--c-bg);color:va
 .hud-corner.bottom-left { bottom: 16px; left: 16px; border-left: 2px solid var(--c-cyan); }
 .hud-corner.bottom-right { bottom: 16px; right: 16px; border-right: 2px solid var(--c-cyan); }
 body::after { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; z-index: 100; pointer-events: none; opacity: 0.6; }
+/* NOUVEAU LAYOUT 3 colonnes */
+.layout{display:grid;grid-template-rows:44px 1fr 80px;grid-template-columns:160px 1fr 220px;height:100vh}
+
+/* Panneau gauche */
+.left-panel{display:flex;flex-direction:column;border-right:1px solid var(--c-border);background:var(--c-panel)}
+.panel-section{border-bottom:1px solid var(--c-border)}
+.panel-header{padding:8px 12px;font-size:8px;letter-spacing:3px;color:var(--c-text2);background:rgba(0,0,0,0.2)}
+.stats-grid{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.stat-row{display:flex;flex-direction:column;gap:3px}
+.stat-label{font-size:8px;letter-spacing:2px;color:var(--c-text2);display:flex;justify-content:space-between}
+.stat-val{color:var(--c-cyan);font-size:10px}
+.stat-bar{height:3px;background:var(--c-dim);border-radius:2px;overflow:hidden}
+.stat-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--c-blue),var(--c-cyan));transition:width 0.8s ease}
+.stat-fill.warn{background:linear-gradient(90deg,#ff6600,#ff8800)}
+.weather-widget{padding:10px 12px}
+.weather-main{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.weather-icon{font-size:22px}
+.weather-temp{font-size:20px;color:var(--c-cyan);font-family:var(--font-title)}
+.weather-desc{font-size:9px;color:var(--c-text2);letter-spacing:1px}
+.weather-details{display:flex;justify-content:space-between;font-size:9px;color:var(--c-text2)}
+.agent-log{flex:1;overflow-y:auto;padding:8px}
+.agent-log::-webkit-scrollbar{width:2px}
+.agent-log::-webkit-scrollbar-thumb{background:var(--c-dim)}
+.log-entry{font-size:10px;line-height:1.6;padding:3px 0;border-bottom:1px solid rgba(13,32,53,0.5)}
+.log-time{color:var(--c-text2)}
+.log-agent.DAVID{color:#00aaff}.log-agent.ULTRON{color:#ff4444}
+.log-agent.MOTHER{color:#00cc88}.log-agent.TARS{color:#ffaa00}
+.log-agent.VERONICA{color:#ff66cc}.log-agent.SONNY{color:#8866ff}
+.log-agent.JARVIS{color:var(--c-cyan)}
+
+/* Mémoire panneau droit */
+.memory-panel{border-bottom:1px solid var(--c-border)}
+.memory-list{max-height:150px;overflow-y:auto;padding:8px}
+.memory-list::-webkit-scrollbar{width:2px}
+.memory-item{font-size:10px;line-height:1.5;padding:3px 6px;border-left:2px solid var(--c-dim);margin-bottom:4px;color:var(--c-text)}
+.memory-item:hover{border-left-color:var(--c-cyan);color:var(--c-cyan)}
+
+/* Horloge topbar */
+.topbar-clock{font-size:18px;letter-spacing:3px;color:var(--c-cyan);font-family:var(--font-title)}
+.topbar-date{font-size:9px;color:var(--c-text2);letter-spacing:2px;text-align:center}
 </style>
 </head>
 <body>
@@ -98,7 +138,56 @@ body::after { content: " "; display: block; position: absolute; top: 0; left: 0;
       <span>RTX 3060 · 12 GB</span>
       <span>WHISPER medium</span>
     </div>
+    <div style="text-align:center">
+    <div class="topbar-clock" id="clock">--:--:--</div>
+    <div class="topbar-date" id="topdate">---</div>
+  </div>
   </header>
+
+<aside class="left-panel">
+  <div class="panel-section">
+    <div class="panel-header">TÉLÉMÉTRIE SYSTÈME</div>
+    <div class="stats-grid">
+      <div class="stat-row">
+        <div class="stat-label"><span>CPU</span><span class="stat-val" id="cpuVal">--%</span></div>
+        <div class="stat-bar"><div class="stat-fill" id="cpuBar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>RAM</span><span class="stat-val" id="ramVal">-- GB</span></div>
+        <div class="stat-bar"><div class="stat-fill" id="ramBar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>GPU</span><span class="stat-val" id="gpuVal">--%</span></div>
+        <div class="stat-bar"><div class="stat-fill" id="gpuBar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>VRAM</span><span class="stat-val" id="vramVal">-- GB</span></div>
+        <div class="stat-bar"><div class="stat-fill" id="vramBar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-header">MÉTÉO — THONON-LES-BAINS</div>
+    <div class="weather-widget">
+      <div class="weather-main">
+        <span class="weather-icon" id="wIcon">🌡</span>
+        <div>
+          <div class="weather-temp" id="wTemp">--°C</div>
+          <div class="weather-desc" id="wDesc">Chargement...</div>
+        </div>
+      </div>
+      <div class="weather-details">
+        <span id="wWind">Vent: --</span>
+        <span id="wHumid">Humidité: --</span>
+        <span id="wFeels">Ressenti: --</span>
+      </div>
+    </div>
+  </div>
+  <div class="panel-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <div class="panel-header">JOURNAL DES AGENTS</div>
+    <div class="agent-log" id="agentLog"></div>
+  </div>
+</aside>
 
   <main class="center">
   <div class="hud-corner top-left">SYS.LOC // THONON.FR</div>
@@ -131,6 +220,10 @@ body::after { content: " "; display: block; position: absolute; top: 0; left: 0;
 </main>
 
   <aside class="right-panel">
+    <div class="memory-panel">
+  <div class="panel-header">MÉMOIRE — SONNY</div>
+  <div class="memory-list" id="memoryList"></div>
+</div>
   <div class="panel-header">SYSTÈME — TELEMÉTRIE MOTHER</div>
   <div class="widget-mother" id="motherWidget">
     <div class="stat-group">
@@ -337,17 +430,15 @@ function animate() {
 }
 animate();
 
-// ─── HORLOGE ─────────────────────────────────────────────────────
-setInterval(() => {
-  const n = new Date();
-  document.getElementById('stat-time').textContent =
-    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
-}, 1000);
-
 // ─── SOCKET.IO (ÉCOUTEURS ET COMPORTEMENT) ────────────────────────
 const socket = io();
 const visualizerEl = document.getElementById('visualizer');
 
+socket.on('stats_update',(data)=>updateStats(data));
+socket.on('weather_update',(data)=>updateWeather(data));
+socket.on('agent_log',(data)=>addAgentLog(data.agent,data.task,data.duration));
+socket.on('memory_update',(data)=>updateMemory(data.facts));
+socket.on('connect',()=>{socket.emit('request_memory');socket.emit('request_weather');});
 socket.on('connect', () => console.log('[JARVIS] Socket connecté'));
 
 socket.on('status', (data) => {
@@ -513,6 +604,55 @@ socket.on('mother_telemetry', (data) => {
     gpuBar.style.width = gpu + '%';
   }
 });
+// Stats système
+function updateStats(d){
+  if(d.cpu!==undefined){document.getElementById('cpuVal').textContent=d.cpu+'%';document.getElementById('cpuBar').style.width=d.cpu+'%';}
+  if(d.ram_pct!==undefined){document.getElementById('ramVal').textContent=d.ram_used+'/'+d.ram_total+' GB';document.getElementById('ramBar').style.width=d.ram_pct+'%';}
+  if(d.gpu_pct!==undefined){document.getElementById('gpuVal').textContent=d.gpu_pct+'%';document.getElementById('gpuBar').style.width=d.gpu_pct+'%';}
+  if(d.vram_used!==undefined){document.getElementById('vramVal').textContent=d.vram_used+'/'+d.vram_total+' GB';document.getElementById('vramBar').style.width=d.vram_pct+'%';}
+}
+
+// Météo
+function updateWeather(d){
+  const icons={0:'☀️',1:'🌤',2:'⛅',3:'☁️',51:'🌦',61:'🌧',80:'🌦',95:'⛈'};
+  const icon=icons[d.code]||'🌡';
+  document.getElementById('wIcon').textContent=icon;
+  document.getElementById('wTemp').textContent=d.temp+'°C';
+  document.getElementById('wDesc').textContent=d.desc||'';
+  if(d.wind)document.getElementById('wWind').textContent='Vent: '+d.wind+' km/h';
+  if(d.humidity)document.getElementById('wHumid').textContent='Humidité: '+d.humidity+'%';
+  if(d.feels)document.getElementById('wFeels').textContent='Ressenti: '+d.feels+'°C';
+}
+
+// Log agents
+function addAgentLog(agent,task,duration){
+  const log=document.getElementById('agentLog');
+  const now=new Date();
+  const time=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const entry=document.createElement('div');entry.className='log-entry';
+  entry.innerHTML='<span class="log-time">['+time+']</span> <span class="log-agent '+agent+'">'+agent+'</span> → '+task.substring(0,25)+(task.length>25?'...:':'')+' <span style="color:var(--c-text2)">'+( duration||'')+'ms</span>';
+  log.insertBefore(entry,log.firstChild);
+  if(log.children.length>30)log.removeChild(log.lastChild);
+}
+// Horloge enrichie
+const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const MOIS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+function updateClockFull(){
+  const n=new Date();
+  document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
+  document.getElementById('topdate').textContent=JOURS[n.getDay()]+' '+n.getDate()+' '+MOIS[n.getMonth()];
+}
+setInterval(updateClockFull,1000);updateClockFull();
+
+// Mémoire
+function updateMemory(facts){
+  const list=document.getElementById('memoryList');list.innerHTML='';
+  (facts||[]).slice(0,10).forEach(f=>{
+    const item=document.createElement('div');item.className='memory-item';
+    item.textContent='📌 '+f.substring(0,55)+(f.length>55?'...':'');
+    list.appendChild(item);
+  });
+}
 </script>
 </body>
 </html>
