@@ -6,6 +6,9 @@ import sys
 import os
 import time
 import re
+import psutil
+import GPUtil
+import time
 
 # Ajoute le répertoire JARVIS au path
 sys.path.insert(0, os.path.expanduser('~/JARVIS'))
@@ -88,6 +91,11 @@ def streamer_reponse_et_vocal(texte_input):
     texte_final = "".join(texte_complet).strip()
     socketio.emit('response_complete', {'text': texte_final})
 
+    # Log dans le journal des agents
+    agent_match = re.search(r'PROCESSING.*?agent : (\w+)', texte_final)
+    agent = agent_match.group(1) if agent_match else 'JARVIS'
+    socketio.emit('agent_log', {'agent': agent, 'task': texte_input[:35], 'duration': ''})
+
 def jarvis_loop():
     global jarvis_running
     print("[JARVIS] Boucle principale démarrée.")
@@ -168,6 +176,53 @@ def handle_text_input(data):
         socketio.emit('status', {'state': 'idle'})
 
     threading.Thread(target=run_async, daemon=True).start()
+
+    # ─── BOUCLE STATS SYSTÈME ────────────────────────────────────────
+def stats_loop():
+    while True:
+        try:
+            cpu = psutil.cpu_percent(interval=1)
+            ram = psutil.virtual_memory()
+            gpus = GPUtil.getGPUs()
+            gpu = gpus[0] if gpus else None
+            socketio.emit('stats_update', {
+                'cpu': round(cpu, 1),
+                'ram_pct': round(ram.percent, 1),
+                'ram_used': round(ram.used/1e9, 1),
+                'ram_total': round(ram.total/1e9, 1),
+                'gpu_pct': round(gpu.load*100) if gpu else 0,
+                'vram_used': round(gpu.memoryUsed/1024, 1) if gpu else 0,
+                'vram_total': 12,
+                'vram_pct': round(gpu.memoryUtil*100) if gpu else 0
+            })
+        except Exception as e:
+            print(f"[STATS] {e}")
+        time.sleep(3)
+
+threading.Thread(target=stats_loop, daemon=True).start()
+
+# ─── HANDLERS MÉMOIRE & MÉTÉO ────────────────────────────────────
+@socketio.on('request_memory')
+def handle_memory():
+    from app.core.memory import charger_memoire
+    m = charger_memoire()
+    socketio.emit('memory_update', {'facts': m['faits_utilisateur']})
+
+@socketio.on('request_weather')
+def handle_weather():
+    import re
+    from app.core.tools import obtenir_meteo_locale
+    raw = obtenir_meteo_locale("Thonon-les-Bains")
+    temp = re.search(r'([\d\.]+)°C', raw)
+    vent = re.search(r'vent.*?([\d\.]+)', raw, re.IGNORECASE)
+    socketio.emit('weather_update', {
+        'temp': temp.group(1) if temp else '--',
+        'code': 1,
+        'desc': 'Open-Meteo live',
+        'wind': vent.group(1)+' km/h' if vent else '--',
+        'humidity': '--',
+        'feels': '--'
+    })
 
 if __name__ == '__main__':
     print("[JARVIS] Interface web disponible sur http://localhost:5000")
