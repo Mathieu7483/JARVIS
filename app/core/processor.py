@@ -10,7 +10,7 @@ from app.core.internet import recherche_web
 from app.core.email_manager import recuperer_derniers_emails
 from app.core.log_analyzer import collecter_logs_systeme
 from app.core.memory import charger_memoire, ajouter_un_fait
-from app.core.agents_hub import AvengersDirector
+from app.agents.hub import AgentsHub
 from app.core.system_stats import obtenir_stats_machine
 from app.core.tools import obtenir_meteo_locale
 
@@ -21,7 +21,7 @@ class Brain:
         Config.validate()
         self.model = "llama3.2:3b"
         self.client = Client(host=OLLAMA_HOST)
-        self.directeur_agents = AvengersDirector()
+        self.directeur_agents = AgentsHub()
         
         self.system_prompt_base = (
             f"Tu es JARVIS, l'intelligence artificielle de Monsieur {Config.USER_NAME}. "
