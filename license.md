@@ -1,0 +1,16 @@
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
+
+Copyright (c) 2026 Mathieu (https://github.com/Mathieu7483)
+
+Vous êtes libre de :
+- **Partager** — copier, distribuer et communiquer le matériel par tous moyens et sous tous formats.
+- **Adapter** — remanier, transformer et créer à partir du matériel.
+
+Selon les conditions suivantes :
+- **Attribution** — Vous devez créditer l'œuvre, indiquer un lien vers la licence et indiquer si des modifications ont été effectuées. Vous devez indiquer ces informations par tous les moyens raisonnables, sans toutefois suggérer que l'auteur vous soutient ou soutient la façon dont vous avez utilisé son œuvre.
+- **Pas d'Utilisation Commerciale** — Vous n'êtes pas autorisé à faire un usage commercial de cette œuvre, tout ou partie du matériel.
+- **Partage dans les Mêmes Conditions** — Dans le cas où vous effectuez un remix, que vous transformez, ou créez à partir du matériel composant l'œuvre originale, vous devez diffuser l'œuvre modifiée dans les mêmes conditions, c'est-à-dire avec la même licence.
+
+Aucune restriction — Les inapplication de la licence :
+Vous n'êtes pas tenu de respecter la licence pour les éléments ou matérial du domaine public ou lorsque l'utilisation est couverte par une exception ou une limitation.
+Aucune garantie n'est donnée. La licence peut ne pas vous donner toutes les permissions nécessaires pour votre utilisation envisagée. Par exemple, d'autres droits comme les droits de publicité, de vie privée ou les droits moraux peuvent limiter votre utilisation.
