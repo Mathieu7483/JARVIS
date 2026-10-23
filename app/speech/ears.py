@@ -23,6 +23,7 @@ class Ears:
                 [PYTHON_WINDOWS, RECORD_SCRIPT],
                 capture_output=True,
                 text=True,
+                encoding='cp1252',
                 timeout=20
             )
 
