@@ -16,12 +16,10 @@ sys.path.insert(0, os.path.expanduser('~/JARVIS'))
 from app.speech.ears import Ears
 from app.speech.mouth import Mouth
 from app.core.processor import Brain
-from app.core import system_stats
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'jarvis-secret'
-# Note: async_mode='gevent' ou 'eventlet' offre des performances accrues pour le streaming audio
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 print("[JARVIS] Chargement des modules IA (Ears, Brain, Mouth)...")
 ears = Ears()
@@ -40,17 +38,16 @@ def mother_telemetry_loop():
     print("[MOTHER] Démarrage du flux de télémétrie...")
     while True:
         try:
-            stats = system_stats.get_system_stats_dict()
+            cpu = psutil.cpu_percent(interval=1)
+            ram = psutil.virtual_memory()
             socketio.emit('mother_telemetry', {
-                'cpu': stats.get('cpu', 0),
-                'ram': stats.get('ram', 0)
+                'cpu': round(cpu, 1),
+                'ram': round(ram.percent, 1)
             })
         except Exception as e:
-            print(f"[MOTHER ERROR] Erreur télémétrie : {e}", file=sys.stderr)
-        
+            print(f"[MOTHER ERROR] {e}", file=sys.stderr)
         socketio.sleep(2)
-
-@socketio.on('connect')
+        
 def handle_connect():
     global telemetry_thread_started
     with thread_lock:
