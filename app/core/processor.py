@@ -7,11 +7,8 @@ from ollama import Client
 from config import Config
 from app.actions import executer_action
 from app.core.internet import recherche_web
-from app.core.email_manager import recuperer_derniers_emails
-from app.core.log_analyzer import collecter_logs_systeme
 from app.core.memory import charger_memoire, ajouter_un_fait
 from app.agents.hub import AgentsHub
-from app.core.system_stats import obtenir_stats_machine
 from app.core.tools import obtenir_meteo_locale
 
 OLLAMA_HOST = "http://172.21.176.1:11434"
@@ -111,19 +108,17 @@ class Brain:
                 nom_agent = decision.replace("AGENT:", "").strip()
                 print(f"[PROCESSING] Délégation à l'agent : {nom_agent}")
 
-                if nom_agent == "MOTHER":
-                    contexte_dynamique = f"[DONNÉES SYSTÈME]\n{obtenir_stats_machine()}"
-                elif nom_agent == "DAVID":
+                if nom_agent == "DAVID":
                     contexte_dynamique = f"[INTERNET]\n{recherche_web(texte_entree)}"
                 elif nom_agent == "VERONICA":
-                    contexte_dynamique = f"[EMAILS]\n{recuperer_derniers_emails()}"
+                    contexte_dynamique = "[EMAILS]\nModule e-mail non configuré."
                 elif nom_agent == "WEATHER":
                     contexte_dynamique = obtenir_meteo_locale(self._extraire_ville(memoire))
                 else:
                     contexte_dynamique = contexte_memoire
 
-                contexte_externe = self.directeur_agents.deleguer_tache(
-                    nom_agent, tache=texte_entree, contexte=contexte_dynamique
+                contexte_externe = self.directeur_agents.deleguer(
+                    nom_agent=nom_agent, tache=texte_entree, contexte=contexte_dynamique
                 )
             elif decision == "WEATHER":
                 contexte_externe = obtenir_meteo_locale(self._extraire_ville(memoire))
