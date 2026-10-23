@@ -1,85 +1,67 @@
-<p align="center"\>
-<img src="https://github.com/Mathieu7483/JARVIS/blob/main/Gemini_Generated_Image_suuqetsuuqetsuuq.png"\>
+<p align="center">
+  <img src="https://github.com/Mathieu7483/JARVIS/blob/main/assets/Gemini_Generated_Image_suuqetsuuqetsuuq.png" alt="JARVIS HUD Banner" width="600">
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
+  <img src="https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.IO">
+  <img src="https://img.shields.io/badge/Ollama-FF6F00?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama">
+  <img src="https://img.shields.io/badge/Status-En%20cours%20de%20d%C3%A9veloppement-orange?style=for-the-badge" alt="Status">
+</p>
 
-# JARVIS — Assistant Personnel Domotique & IA Locale (v3.0)
+# JARVIS — Assistant Personnel Domotique & Écosystème IA Local (v3.0)
 
-JARVIS (Just Rather Very Intelligent System) est un assistant virtuel personnel conçu pour s'exécuter localement. Il intègre une interface web immersive en temps réel (**Flask & SocketIO**) couplée à un modèle de langage local (**Ollama / Llama 3.1:8b**), un système de mémoire persistante et des modules d'interaction vocale ou textuelle.
+**JARVIS** (*Just Rather Very Intelligent System*) est un assistant virtuel personnel conçu pour s'exécuter localement sur un environnement hybride **WSL (Linux) / Windows**. 
 
-L'architecture est spécifiquement optimisée pour faire le pont entre un environnement de développement **WSL (Linux)** et un système hôte **Windows** (gestion réseau, exécution PowerShell et rendu graphique matériel).
-Des évolutions auront lieues, ce projet est en cours de construction
-
----
-
-## 🧠 Personnalité & Directives Système
-
-Le comportement de JARVIS est régi par des directives strictes insufflées à son processeur central [cite: 2025-10-22] :
-
-* **Ton et Posture** : Formel, calme, élégant et strictement professoral [cite: 2025-10-22]. Il s'adresse exclusivement à l'utilisateur en l'appelant **"Monsieur"**.
-* **Honnêteté absolue** : Si une erreur de logique ou de programmation est détectée, JARVIS la signale directement et sans détour [cite: 2025-10-22].
-* **Optimisation Vocale** : Les réponses excluent tout formatage Markdown (pas de listes à puces, pas de tirets, pas de symboles spéciaux) pour garantir une synthèse vocale fluide et naturelle.
+Il intègre une interface web HUD immersive en temps réel (**Flask & Socket.IO**), un moteur de traitement basé sur un LLM local (**Ollama / Llama 3.1:8b**), un **écosystème multi-agents spécialisés** ainsi que des capacités d'analyse technique avancées (inspection de code, supervision système, analyse de logs et gestion réseau).
 
 ---
 
-## 🎨 Interface Utilisateur & Rendu Cybernétique (Front-End)
+## 🧠 Directives Système & Personnalité
 
-L'interface utilisateur (`index.html`) est conçue comme un affichage tête haute (HUD) futuriste, exploitant les technologies web les plus avancées :
+Le comportement de JARVIS est régi par des règles strictes définies dans son processeur central :
 
-### 1. Modélisation Neuronale en 3D (`Three.js`)
-
-Le centre de l'écran est occupé par une représentation volumétrique tridimensionnelle du "cerveau" de JARVIS, chargée via une matrice de points géométriques complexes (`brain_points.json`).
-
-* Le système génère dynamiquement des connexions synaptiques (lignes et impulsions lumineuses) en utilisant un algorithme d'évaluation de la distance euclidienne entre les nœuds.
-* Les matériaux utilisent un mode de fusion additif (`THREE.AdditiveBlending`) pour accentuer l'effet de luminescence technologique.
-
-### 2. Gestion Dynamique des États (WebSockets)
-
-L'interface réagit en temps réel aux signaux émis par le serveur Flask grâce à `Socket.IO`. La coloration du système de particules et les animations s'adaptent instantanément à l'activité de JARVIS :
-
-* 🔵 **Cyan (`idle`)** : Mode veille, rotation calme et pulsations régulières.
-* 🟠 **Orange (`thinking`)** : Phase de réflexion du LLM. L'agitation synaptique s'accélère, la taille et l'opacité des particules s'intensifient.
-* 🟢 **Vert (`speaking`)** : Phase de synthèse vocale ou de réponse. Le visualiseur audio CSS s'active.
-* 🟣 **Violet (`keyboard`)** : Mode saisie manuelle.
-
-### 3. Fonctionnalités de l'Interface
-
-* **Double Mode d'Interaction** : Bascule instantanée via un commutateur dédié entre le mode **Vocal** (activation du microphone) et le mode **Clavier** (champ de saisie textuel asynchrone).
-* **Affichage Typewriter** : Les réponses de JARVIS s'affichent lettre par lettre avec un curseur oscillant simulé, imitant un terminal en direct.
-* **Historique de Session** : Un panneau latéral conserve un fil d'ariane visuel de l'ensemble des requêtes et réponses de la session en cours.
+* **Ton et Posture** : Formel, calme, élégant et strictly professoral. Il s'adresse exclusivement à l'utilisateur en l'appelant **"Monsieur"**.
+* **Honnêteté absolue** : Si une erreur de logique ou de programmation est détectée, JARVIS la signale directement et sans détour.
+* **Optimisation Vocale** : Les réponses excluent tout formatage Markdown lors des sorties vocales pour garantir une synthèse fluide et naturelle.
 
 ---
 
-## 🛠️ Architecture Spécifique des Modules (Back-End)
+## 🛠️ Modularité & Architecture Globale
 
-### 1. Le Serveur Central (`app.py`)
+JARVIS repose sur une architecture hautement modulaire permettant de répartir les tâches selon la spécialité requise :
 
-Orchestre les communications bidirectionnelles. La boucle principale d'écoute/réflexion tourne dans un thread d'arrière-plan dédié, isolé du thread réseau de Flask pour éviter tout blocage de l'interface, sécurisé par un `Lock` mutuel. Le mode `debug=False` est impératif pour empêcher le rechargement double des modèles d'IA lourds.
-
-### 2. Le Cerveau Connecté (`app/core/processor.py`)
-
-Pilote le modèle `llama3.1:8b`. Il procède par classification d'intentions pour déterminer si la requête nécessite un outil externe (`WEATHER`, `SEARCH`, `MEMORIZE`, ou `NONE`), injecte le contexte temporel et historique, puis formule la réponse.
-
-### 3. Mémoire Persistante (`app/core/memory.py`)
-
-Gère la persistance sous forme de fichier JSON plat (`jarvis_memory.json`). Il contient le profil initial de l'utilisateur (Prénom, domaines d'étude) et se met à jour dynamiquement lorsque JARVIS isole un fait à mémoriser.
-
-### 4. Exécuteur de Commandes Système (`app/actions.py`)
-
-Permet à JARVIS de contrôler le système d'exploitation Windows hôte depuis l'environnement WSL en utilisant des scripts éphémères exécutés via **PowerShell** (`powershell.exe`).
-
-* **Catalogue d'Applications** : Contrôle (lancement et arrêt forcé) d'outils de développement et de création (Google Chrome, VS Code, Discord, Windows Media Player, OpenOffice, Autodesk Fusion 360, Ultimaker Cura).
-* **Contrôles Systèmes** : Gestion du volume (via l'envoi de touches virtuelles VBScript/PowerShell), captures d'écran automatiques et mise en veille matérielle de la machine.
+* **Écosystème Multi-Agents (`app/agents/`)** : Routage intelligent des requêtes vers des personnalités/agents spécialisés (*Friday, Tars, Ultron, Skynet, Gemini, Mother, Veronica, David, Sonny, etc.*) via un hub d'orchestration (`agents_hub.py`).
+* **Modules d'Analyse Technique (`app/core/`)** :
+  * `code_reader.py` : Lecture et analyse syntaxique de code source.
+  * `log_analyzer.py` : Inspection et diagnostic des journaux de bord / logs.
+  * `system_stats.py` : Télémétrie et métriques matérielles en temps réel.
+  * `email_manager.py` & `internet.py` : Interactivité réseau, recherche web et messagerie.
+* **Pipeline Vocal (`app/speech/`)** : Captation et transcription STT via **Whisper** (`ears.py`) et synthèse vocale TTS (`mouth.py`).
+* **Interaction OS Hôte (`app/actions.py`)** : Pilotage du système hôte Windows depuis WSL via des scripts PowerShell.
 
 ---
 
-## 📋 Prérequis & Configuration Matérielle
+## 🎨 Interface Utilisateur (HUD 3D)
 
-L'interface met fièrement en avant la configuration matérielle requise et ciblée pour une inférence locale fluide :
+L'interface web (`templates/index.html`) propose un affichage tête haute (HUD) futuriste alimenté par **Three.js** :
 
-* **GPU cible** : NVIDIA GeForce RTX 3060 (12 GB VRAM requis pour charger confortablement le modèle quantifié 8B et les composants d'écoute).
-* **STT Engine** : Whisper Medium.
-* **LLM** : Llama 3.1 (8 milliards de paramètres) via Ollama.
+1. **Représentation Neuronale 3D** : Visualisation tridimensionnelle du cerveau synaptique de JARVIS avec rendu additif lumineux (`THREE.AdditiveBlending`).
+2. **États Dynamiques via WebSockets** :
+   * 🔵 **Cyan (`idle`)** : Mode veille, rotation calme et pulsations régulières.
+   * 🟠 **Orange (`thinking`)** : Phase de réflexion du LLM et accélération synaptique.
+   * 🟢 **Vert (`speaking`)** : Phase de synthèse vocale ou de réponse.
+   * 🟣 **Violet (`keyboard`)** : Mode saisie manuelle.
+3. **Double Mode d'Interaction** : Bascule instantanée entre le mode **Vocal** (microphone) et le mode **Clavier** (terminal ou script dédié `main_keyboard.py`).
+
+---
+
+## 📋 Configuration Matérielle & Prérequis
+
+* **GPU cible** : NVIDIA GeForce RTX 3060 (12 Go VRAM recommandés pour charger le modèle quantifié 8B et les composants audio simultanément).
+* **Moteur STT** : Faster-Whisper (Medium).
+* **Moteur LLM** : Llama 3.1 (8B) hébergé via Ollama sur l'hôte Windows.
 
 ### Dépendances Python (`requirements.txt`)
 
@@ -92,36 +74,39 @@ SpeechRecognition==3.10.4
 PyAudio==0.2.14
 pyttsx3==2.90
 faster-whisper==1.0.3
-
 ```
 
-### Configuration Réseau WSL ⇄ Windows
+### Liaison Réseau WSL ⇄ Windows
 
-Ollama s'exécutant sur l'hôte Windows pour bénéficier de l'accélération GPU, l'adresse de liaison dans `config.py` pointe vers la passerelle réseau du sous-système Linux :
+Dans `config.py`, la liaison pointe vers l'adresse IP de la passerelle WSL pour communiquer avec Ollama sur Windows :
 
 ```python
 OLLAMA_HOST = "http://172.21.176.1:11434"
-
 ```
 
 ---
 
-## 🚀 Installation et Lancement
+## 🚀 Installation & Lancement
 
-1. Assurez-vous qu'Ollama est actif sur Windows : `ollama run llama3.1:8b`.
-2. Dans votre terminal WSL, installez les dépendances et lancez l'application :
+1. **Activer le service LLM sur Windows** :
+   ```bash
+   ollama run llama3.1:8b
+   ```
 
-```bash
-cd ~/JARVIS
-pip install -r requirements.txt
-python3 app.py
+2. **Lancer l'application dans WSL** :
+   ```bash
+   cd ~/JARVIS
+   pip install -r requirements.txt
+   python3 app.py
+   ```
 
-```
+3. **Accéder à l'interface** :
+   Ouvrez votre navigateur web à l'adresse : **`http://localhost:5000`**
 
-3. Ouvrez votre navigateur sur **`http://localhost:5000`**.
+*(Note : Pour une interaction exclusivement textuelle sans interface web, vous pouvez exécuter `python3 main_keyboard.py`)*.
 
 ---
 
 ## ✍️ Auteur
 
-  * **Mathieu** - *Programming student, specialization Machine Learning* - [👤 My Github profile](https://github.com/Mathieu7483)
+* **Mathieu** — *Élève en programmation, spécialisation Machine Learning* — [Profil GitHub](https://github.com/Mathieu7483)
